@@ -171,8 +171,6 @@ bool PositionControl::checkLoadDynamixel()
     ROS_INFO("Profile Velocity     : %d", profile_velocity_);
     ROS_INFO("Profile Acceleration : %d", profile_acceleration_);
   }
-  ROS_INFO("-----------------------------------------------------------------------");
-  ROS_INFO("------------------ pega viado ------------------");
 }
 
 bool PositionControl::initDynamixelStatePublisher()

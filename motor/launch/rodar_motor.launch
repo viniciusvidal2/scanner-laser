@@ -1,0 +1,9 @@
+<launch>
+
+<include file="$(find dynamixel_workbench_controllers)/launch/multi_port.launch">
+</include>
+
+<node name="rodar_continuo" pkg="motor" type="mover_continuo" output="screen">
+</node>
+
+</launch>

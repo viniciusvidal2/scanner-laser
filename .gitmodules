@@ -1,3 +1,6 @@
 [submodule "hokuyo_node"]
 	path = hokuyo_node
 	url = https://github.com/ros-drivers/hokuyo_node.git
+[submodule "DynamixelSDK"]
+	path = DynamixelSDK
+	url = https://github.com/ROBOTIS-GIT/DynamixelSDK.git
