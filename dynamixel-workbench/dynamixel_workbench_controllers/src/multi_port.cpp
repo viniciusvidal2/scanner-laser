@@ -194,8 +194,8 @@ bool MultiPort::initDynamixelStatePublisher()
   pan_state_pub_  = node_handle_.advertise<dynamixel_workbench_msgs::DynamixelState>("/multi_port/pan_state", 100);
 //  tilt_state_pub_ = node_handle_.advertise<dynamixel_workbench_msgs::DynamixelState>("/multi_port/tilt_state", 100);
 
-  // Vinicius - iniciar publisher dos angulos sincronizados em mensagem de odometria
-//  angulos_sincronizados_pub = node_handle_.advertise<nav_msgs::Odometry>("/dynamixel_angulos_sincronizados", 100);
+  // Vinicius - iniciar publisher dos angulos sincronizados em mensagem de odometria para poder sincronizar no destino
+  angulos_sincronizados_pub = node_handle_.advertise<nav_msgs::Odometry>("/dynamixel_angulos_sincronizados", 100);
 }
 
 bool MultiPort::initDynamixelInfoServer()
@@ -281,6 +281,12 @@ bool MultiPort::dynamixelStatePublish(uint8_t motor)
   dynamixel_state.goal_position       = read_data["goal_position"];
   dynamixel_state.moving              = read_data["moving"];
 
+  // Passando por mensagem de odometria:
+  // POSITION - valor PRESENT
+  // ORIENTATION - valor GOAL
+  angulos_sincronizados_msg.pose.pose.position.x = dynamixel_state.present_position;
+  angulos_sincronizados_msg.pose.pose.orientation.x = dynamixel_state.goal_position;
+
 //  if (dynamixel_driver->getProtocolVersion() == 2.0)
 //  {
 //    if (dynamixel_driver->dynamixel_->model_name_.find("XM") != std::string::npos)
@@ -301,7 +307,8 @@ bool MultiPort::dynamixelStatePublish(uint8_t motor)
   if (motor == PAN)
   {
     pan_state_pub_.publish(dynamixel_state);
-    pan_sincronizado = dynamixel_state.present_position; // Vinicius - le o motor certo para publicar sincronizado na rotina principal
+    angulos_sincronizados_pub.publish(angulos_sincronizados_msg);
+//    pan_sincronizado = dynamixel_state.present_position; // Vinicius - le o motor certo para publicar sincronizado na rotina principal
   }
 //  else if (motor == TILT)
 //  {

@@ -8,14 +8,14 @@ add_compile_options(-std=c++11)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED
-  roscpp dynamixel_sdk dynamixel_workbench_msgs dynamixel_workbench_toolbox
+  roscpp dynamixel_sdk dynamixel_workbench_msgs dynamixel_workbench_toolbox message_filters pcl_ros laser_geometry sensor_msgs
 )
 
 
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES automatico_mrs
-  CATKIN_DEPENDS roscpp dynamixel_sdk dynamixel_workbench_msgs dynamixel_workbench_toolbox
+  CATKIN_DEPENDS roscpp dynamixel_sdk dynamixel_workbench_msgs dynamixel_workbench_toolbox message_filters pcl_ros laser_geometry sensor_msgs
 #  DEPENDS system_lib
 )
 
@@ -32,7 +32,10 @@ include_directories(
 
 
 add_executable(mover_continuo src/mover_continuo.cpp)
-target_link_libraries(mover_continuo ${catkin_LIBRARIES})
+target_link_libraries(mover_continuo ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(scanner src/scanner.cpp)
+target_link_libraries(scanner ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 
 ## Mark executables and/or libraries for installation
