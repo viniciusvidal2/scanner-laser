@@ -1,5 +1,10 @@
 #include "ros/ros.h"
-#include "std_msgs/String.h"
+
+#include <math.h>
+
+#include <Eigen/Geometry>
+#include <Eigen/Dense>
+#include <Eigen/Core>
 
 #include <laser_geometry/laser_geometry.h>
 #include <sensor_msgs/LaserScan.h>
@@ -19,6 +24,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/ply_io.h>
+#include <pcl_ros/transforms.h>
 
 using namespace message_filters;
 using namespace pcl;
@@ -42,15 +48,6 @@ laser_geometry::LaserProjection projector;
 PointCloud<PointXYZ>::Ptr acc;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void chatterCallback(const dynamixel_workbench_msgs::DynamixelStateConstPtr& msg)
-{
-    ROS_INFO("No momento ca estamos: [%d]", msg->present_position);
-    if(abs(msg->present_position - raw_max) < 3){
-        sub.shutdown();
-        ROS_WARN("Chegamos ao fim de curso.");
-    }
-}
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 double deg2raw(double deg){
     return (deg - deg_min)*raw_deg + raw_min;
 }
@@ -59,19 +56,41 @@ double raw2deg(double raw){
     return (raw - raw_min)*deg_raw + deg_min;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Eigen::Matrix4f transformFromRaw(double raw){
+    // Valor em graus que girou, tirando a referencia, convertido para frame global ODOM:
+    // theta_y = -degrees (contrario a mao direita)
+    double theta_y = -raw2deg(raw - raw_ref);
+    // Constroi matriz de rotacao
+    Eigen::Matrix3f R;
+    R = Eigen::AngleAxisf(               0, Eigen::Vector3f::UnitX()) *
+        Eigen::AngleAxisf(DEG2RAD(theta_y), Eigen::Vector3f::UnitY()) *
+        Eigen::AngleAxisf(               0, Eigen::Vector3f::UnitZ());
+    // Constroi matriz homgenea e retorna
+    Eigen::Vector3f t;
+    t << 0, 0, 0;
+    Eigen::Matrix4f T;
+    T << R, t,
+         0, 0, 0, 1;
+
+    return T;
+
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void callback(const sensor_msgs::LaserScanConstPtr& msg_laser,
               const nav_msgs::OdometryConstPtr& msg_motor){
     // Esperar chegar no 0 - ai liberar flag e começar
     if (abs(msg_motor->pose.pose.position.x - raw_min) < 2 && !comecar){
         ROS_INFO("Chegamos no inicio para comecar a aquisicao: %.0f", msg_motor->pose.pose.position.x);
         raw_ref = msg_motor->pose.pose.position.x; // Salva aqui a referencia nova raw
-        //        deg_ref =  // Calcular aqui com a regra de tres necessaria - FUNCAO DEDICADA
+        deg_ref = raw2deg(raw_ref); // Nova referencia em degrees - aqui e o 0
+
         dynamixel_workbench_msgs::JointCommand comando;
         comando.request.pan_pos  = raw_max;
         comando.request.tilt_pos =       0;
         comando.request.unit     =   "raw";
         if(comando_motor.call(comando))
             ROS_INFO("Mandamos para o fim de curso e capturando ao longo do caminho. Estado: %.2f", comando.response.pan_pos);
+
         comecar = true;
     } else if (abs(msg_motor->pose.pose.position.x - raw_min) > 2 && !comecar){
         ROS_INFO("Estamos esperando chegar no valor minimo, ainda estamos em %.0f", msg_motor->pose.pose.position.x);
@@ -86,7 +105,8 @@ void callback(const sensor_msgs::LaserScanConstPtr& msg_laser,
         PointCloud<PointXYZ>::Ptr cloud (new PointCloud<PointXYZ>());
         fromROSMsg(msg_cloud, *cloud);
         // Aplicar transformada de acordo com o angulo
-
+        Eigen::Matrix4f T = transformFromRaw(msg_motor->pose.pose.position.x);
+        transformPointCloud(*cloud, *cloud, T);
         // Acumular nuvem
         *acc += *cloud;
 
@@ -96,6 +116,7 @@ void callback(const sensor_msgs::LaserScanConstPtr& msg_laser,
     if(abs(msg_motor->pose.pose.position.x - raw_max) < 2){
         pcl::io::savePLYFileASCII("/home/grin/Desktop/nuvem_laser.ply", *acc);
         ROS_WARN("Conferir por nuvem final na area de trabalho.");
+        ros::shutdown();
     }
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,6 +158,8 @@ int main(int argc, char **argv)
     if(comando_motor.call(comando))
         ROS_INFO("Mandamos a zero para comecar. Estado: %.2f", comando.response.pan_pos);
 
+    /// Rodar o ros e o publicador em loop
+    ///
     ros::Rate r(1);
 
     while(ros::ok()){
