@@ -8,14 +8,14 @@ add_compile_options(-std=c++11)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED
-  roscpp dynamixel_sdk dynamixel_workbench_msgs dynamixel_workbench_toolbox message_filters pcl_ros laser_geometry sensor_msgs
+  roscpp dynamixel_sdk dynamixel_workbench_msgs dynamixel_workbench_toolbox message_filters pcl_ros laser_geometry sensor_msgs tf2 tf2_ros geometry_msgs
 )
 
 
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES automatico_mrs
-  CATKIN_DEPENDS roscpp dynamixel_sdk dynamixel_workbench_msgs dynamixel_workbench_toolbox message_filters pcl_ros laser_geometry sensor_msgs
+  CATKIN_DEPENDS roscpp dynamixel_sdk dynamixel_workbench_msgs dynamixel_workbench_toolbox message_filters pcl_ros laser_geometry sensor_msgs tf2 tf2_ros geometry_msgs
 #  DEPENDS system_lib
 )
 

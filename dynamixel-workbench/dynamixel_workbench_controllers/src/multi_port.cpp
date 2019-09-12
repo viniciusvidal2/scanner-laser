@@ -62,31 +62,31 @@ bool MultiPort::loadDynamixel()
 
   dynamixel_info_.push_back(pan_info);
 
-//  dynamixel_driver::DynamixelInfo *tilt_info = new dynamixel_driver::DynamixelInfo;
+  dynamixel_driver::DynamixelInfo *tilt_info = new dynamixel_driver::DynamixelInfo;
 
-//  tilt_info->lode_info.device_name      = node_handle_.param<std::string>("tilt/device_name", "/dev/ttyUSB0");
-//  tilt_info->lode_info.baud_rate        = node_handle_.param<int>("tilt/baud_rate", 1000000);
-//  tilt_info->lode_info.protocol_version = node_handle_.param<float>("tilt/protocol_version", 1.0);
+  tilt_info->lode_info.device_name      = node_handle_.param<std::string>("tilt/device_name", "/dev/ttyUSB0");
+  tilt_info->lode_info.baud_rate        = node_handle_.param<int>("tilt/baud_rate", 1000000);
+  tilt_info->lode_info.protocol_version = node_handle_.param<float>("tilt/protocol_version", 1.0);
 
-//  tilt_info->model_id                   = node_handle_.param<int>("tilt/id", 1);
+  tilt_info->model_id                   = node_handle_.param<int>("tilt/id", 1);
 
-//  dynamixel_info_.push_back(tilt_info);
+  dynamixel_info_.push_back(tilt_info);
 
   pan_driver_  = new dynamixel_driver::DynamixelDriver(dynamixel_info_[PAN]->lode_info.device_name,
                                                        dynamixel_info_[PAN]->lode_info.baud_rate,
                                                        dynamixel_info_[PAN]->lode_info.protocol_version);
 
-//  tilt_driver_ = new dynamixel_driver::DynamixelDriver(dynamixel_info_[TILT]->lode_info.device_name,
-//                                                       dynamixel_info_[TILT]->lode_info.baud_rate,
-//                                                       dynamixel_info_[TILT]->lode_info.protocol_version);
+  tilt_driver_ = new dynamixel_driver::DynamixelDriver(dynamixel_info_[TILT]->lode_info.device_name,
+                                                       dynamixel_info_[TILT]->lode_info.baud_rate,
+                                                       dynamixel_info_[TILT]->lode_info.protocol_version);
 
   ret = pan_driver_ ->ping(dynamixel_info_[PAN]->model_id);
-//  ret = tilt_driver_->ping(dynamixel_info_[TILT]->model_id);
+  ret = tilt_driver_->ping(dynamixel_info_[TILT]->model_id);
 
   if (ret)
   {
     dynamixel_info_[PAN] ->model_name  = pan_driver_->dynamixel_->model_name_.c_str();
-//    dynamixel_info_[TILT]->model_name  = tilt_driver_->dynamixel_->model_name_.c_str();
+    dynamixel_info_[TILT]->model_name  = tilt_driver_->dynamixel_->model_name_.c_str();
   }
 
   // VINICIUS
@@ -108,11 +108,11 @@ bool MultiPort::setTorque(bool onoff)
     return false;
   }
 
-//  if (!tilt_driver_->writeRegister("torque_enable", writeValue_->torque.at(TILT)))
-//  {
-//    ROS_ERROR("Write Tilt Torque Failed!");
-//    return false;
-//  }
+  if (!tilt_driver_->writeRegister("torque_enable", writeValue_->torque.at(TILT)))
+  {
+    ROS_ERROR("Write Tilt Torque Failed!");
+    return false;
+  }
 
   return true;
 }
@@ -120,7 +120,7 @@ bool MultiPort::setTorque(bool onoff)
 // VINICIUS - Suavizar os motores, velocidade esta a 150, mas pode aumentar
 void MultiPort::setSlope()
 {
-  pan_driver_->writeRegister("moving_speed", 10);
+  pan_driver_->writeRegister("moving_speed", 5);
   pan_driver_->writeRegister("cw_angle_limit" ,  133); // 11  degrees
   pan_driver_->writeRegister("ccw_angle_limit", 3979); // 349 degrees
 
@@ -128,13 +128,13 @@ void MultiPort::setSlope()
   pan_driver_->writeRegister("i_gain",  5);
   pan_driver_->writeRegister("d_gain",  5);
 
-//  tilt_driver_->writeRegister("moving_speed", 35);
-//  tilt_driver_->writeRegister("cw_angle_limit" ,  1965); //1965 172 degrees
-//  tilt_driver_->writeRegister("ccw_angle_limit",  2300); //2300 202 degrees
+  tilt_driver_->writeRegister("moving_speed", 15);
+  tilt_driver_->writeRegister("cw_angle_limit" ,  1965); //1965 172 degrees
+  tilt_driver_->writeRegister("ccw_angle_limit",  2300); //2300 202 degrees
 
-//  tilt_driver_->writeRegister("p_gain", 60);
-//  tilt_driver_->writeRegister("i_gain", 10);
-//  tilt_driver_->writeRegister("d_gain",  1);
+  tilt_driver_->writeRegister("p_gain", 60);
+  tilt_driver_->writeRegister("i_gain", 10);
+  tilt_driver_->writeRegister("d_gain",  1);
 }
 
 bool MultiPort::setPosition(uint32_t pan_pos, uint32_t tilt_pos)
@@ -149,11 +149,11 @@ bool MultiPort::setPosition(uint32_t pan_pos, uint32_t tilt_pos)
     return false;
   }
 
-//  if (!tilt_driver_->writeRegister("goal_position", writeValue_->pos.at(TILT)))
-//  {
-//    ROS_ERROR("Write Tilt Position Failed!");
-//    return false;
-//  }
+  if (!tilt_driver_->writeRegister("goal_position", writeValue_->pos.at(TILT)))
+  {
+    ROS_ERROR("Write Tilt Position Failed!");
+    return false;
+  }
 
   return true;
 }
@@ -181,18 +181,18 @@ bool MultiPort::checkLoadDynamixel()
   ROS_INFO("Device Name    : %s", dynamixel_info_[PAN]->lode_info.device_name.c_str());
   ROS_INFO("ID             : %d", dynamixel_info_[PAN]->model_id);
   ROS_INFO("MODEL          : %s", dynamixel_info_[PAN]->model_name.c_str());
-//  ROS_INFO(" ");
-//  ROS_INFO("TILT MOTOR INFO");
-//  ROS_INFO("Device Name    : %s", dynamixel_info_[TILT]->lode_info.device_name.c_str());
-//  ROS_INFO("ID             : %d", dynamixel_info_[TILT]->model_id);
-//  ROS_INFO("MODEL          : %s", dynamixel_info_[TILT]->model_name.c_str());
-//  ROS_INFO("-----------------------------------------------------------------------");
+  ROS_INFO(" ");
+  ROS_INFO("TILT MOTOR INFO");
+  ROS_INFO("Device Name    : %s", dynamixel_info_[TILT]->lode_info.device_name.c_str());
+  ROS_INFO("ID             : %d", dynamixel_info_[TILT]->model_id);
+  ROS_INFO("MODEL          : %s", dynamixel_info_[TILT]->model_name.c_str());
+  ROS_INFO("-----------------------------------------------------------------------");
 }
 
 bool MultiPort::initDynamixelStatePublisher()
 {
   pan_state_pub_  = node_handle_.advertise<dynamixel_workbench_msgs::DynamixelState>("/multi_port/pan_state", 100);
-//  tilt_state_pub_ = node_handle_.advertise<dynamixel_workbench_msgs::DynamixelState>("/multi_port/tilt_state", 100);
+  tilt_state_pub_ = node_handle_.advertise<dynamixel_workbench_msgs::DynamixelState>("/multi_port/tilt_state", 100);
 
   // Vinicius - iniciar publisher dos angulos sincronizados em mensagem de odometria para poder sincronizar no destino
   angulos_sincronizados_pub = node_handle_.advertise<nav_msgs::Odometry>("/dynamixel_angulos_sincronizados", 100);
@@ -212,11 +212,11 @@ bool MultiPort::readValue(uint8_t motor, std::string addr_name)
     pan_driver_->readRegister(addr_name, &read_value);
     pan_data_[addr_name] = read_value;
   }
-//  else if (motor == TILT)
-//  {
-//    tilt_driver_->readRegister(addr_name, &read_value);
-//    tilt_data_[addr_name] = read_value;
-//  }
+  else if (motor == TILT)
+  {
+    tilt_driver_->readRegister(addr_name, &read_value);
+    tilt_data_[addr_name] = read_value;
+  }
 }
 
 bool MultiPort::readDynamixelState(uint8_t motor)
@@ -225,8 +225,8 @@ bool MultiPort::readDynamixelState(uint8_t motor)
 
   if (motor == PAN)
     dynamixel_driver = pan_driver_;
-//  else if (motor == TILT)
-//    dynamixel_driver = tilt_driver_;
+  else if (motor == TILT)
+    dynamixel_driver = tilt_driver_;
 
   readValue(motor, "torque_enable");
 
@@ -256,7 +256,7 @@ bool MultiPort::readDynamixelState(uint8_t motor)
 bool MultiPort::dynamixelStatePublish(uint8_t motor)
 {
   readDynamixelState(PAN);
-//  readDynamixelState(TILT);
+  readDynamixelState(TILT);
 
   dynamixel_driver::DynamixelDriver*       dynamixel_driver;
   dynamixel_workbench_msgs::DynamixelState dynamixel_state;
@@ -268,11 +268,11 @@ bool MultiPort::dynamixelStatePublish(uint8_t motor)
     dynamixel_driver = pan_driver_;
     read_data        = pan_data_;
   }
-//  else if (motor == TILT)
-//  {
-//    dynamixel_driver = tilt_driver_;
-//    read_data        = tilt_data_;
-//  }
+  else if (motor == TILT)
+  {
+    dynamixel_driver = tilt_driver_;
+    read_data        = tilt_data_;
+  }
 
   dynamixel_state.model_name          = dynamixel_driver->dynamixel_->model_name_;
   dynamixel_state.id                  = dynamixel_driver->dynamixel_->id_;
@@ -281,11 +281,13 @@ bool MultiPort::dynamixelStatePublish(uint8_t motor)
   dynamixel_state.goal_position       = read_data["goal_position"];
   dynamixel_state.moving              = read_data["moving"];
 
-  // Passando por mensagem de odometria:
+  // Passando por mensagem de odometria: x (pan) e y (tilt)
   // POSITION - valor PRESENT
   // ORIENTATION - valor GOAL
-  angulos_sincronizados_msg.pose.pose.position.x = dynamixel_state.present_position;
-  angulos_sincronizados_msg.pose.pose.orientation.x = dynamixel_state.goal_position;
+  angulos_sincronizados_msg.pose.pose.position.x    = pan_data_["present_position"];
+  angulos_sincronizados_msg.pose.pose.orientation.x = pan_data_["goal_position"];
+  angulos_sincronizados_msg.pose.pose.position.y    = tilt_data_["present_position"];
+  angulos_sincronizados_msg.pose.pose.orientation.y = tilt_data_["goal_position"];
 
 //  if (dynamixel_driver->getProtocolVersion() == 2.0)
 //  {
@@ -307,14 +309,19 @@ bool MultiPort::dynamixelStatePublish(uint8_t motor)
   if (motor == PAN)
   {
     pan_state_pub_.publish(dynamixel_state);
-    angulos_sincronizados_pub.publish(angulos_sincronizados_msg);
 //    pan_sincronizado = dynamixel_state.present_position; // Vinicius - le o motor certo para publicar sincronizado na rotina principal
   }
-//  else if (motor == TILT)
-//  {
-//    tilt_state_pub_.publish(dynamixel_state);
+  else if (motor == TILT)
+  {
+    tilt_state_pub_.publish(dynamixel_state);
 //    tilt_sincronizado = dynamixel_state.present_position;
-//  }
+  }
+
+  // Vinicius - publicando mensagem com os angulos sincronizados
+  angulos_sincronizados_msg.header.frame_id = "map";
+  angulos_sincronizados_msg.child_frame_id = "laser";
+  angulos_sincronizados_msg.header.stamp = ros::Time::now();
+  angulos_sincronizados_pub.publish(angulos_sincronizados_msg);
 }
 
 uint32_t MultiPort::convertRadian2Value(uint8_t motor, float radian)
@@ -324,8 +331,8 @@ uint32_t MultiPort::convertRadian2Value(uint8_t motor, float radian)
 
   if (motor == PAN)
     dynamixel_driver = pan_driver_;
-//  else if (motor == TILT)
-//    dynamixel_driver = tilt_driver_;
+  else if (motor == TILT)
+    dynamixel_driver = tilt_driver_;
 
   if (radian > 0)
   {
@@ -357,40 +364,33 @@ uint32_t MultiPort::convertRadian2Value(uint8_t motor, float radian)
 bool MultiPort::controlLoop()
 {
   dynamixelStatePublish(PAN);
-//  dynamixelStatePublish(TILT);
-
-  // Vinicius - publicando os dois juntinhos
-//  angulos_sincronizados_msg.pose.pose.position.x = pan_sincronizado;
-//  angulos_sincronizados_msg.pose.pose.position.y = tilt_sincronizado;
-//  angulos_sincronizados_msg.header.frame_id = "odom";
-//  angulos_sincronizados_msg.header.stamp = ros::Time::now();
-//  angulos_sincronizados_pub.publish(angulos_sincronizados_msg);
+  dynamixelStatePublish(TILT);
 }
 
 bool MultiPort::jointCommandMsgCallback(dynamixel_workbench_msgs::JointCommand::Request &req,
                                               dynamixel_workbench_msgs::JointCommand::Response &res)
 {
   uint32_t pan_pos = 0;
-//  uint32_t tilt_pos = 0;
+  uint32_t tilt_pos = 0;
 
   if (req.unit == "rad")
   {
     pan_pos = convertRadian2Value(PAN, req.pan_pos);
-//    tilt_pos = convertRadian2Value(TILT, req.tilt_pos);
+    tilt_pos = convertRadian2Value(TILT, req.tilt_pos);
   }
   else if (req.unit == "raw")
   {
     pan_pos = req.pan_pos;
-//    tilt_pos = req.tilt_pos;
+    tilt_pos = req.tilt_pos;
   }
   else
   {
     pan_pos = req.pan_pos;
-//    tilt_pos = req.tilt_pos;
+    tilt_pos = req.tilt_pos;
   }
 
   setPosition(pan_pos);
-//  setPosition(pan_pos, tilt_pos);
+  setPosition(pan_pos, tilt_pos);
 
   res.pan_pos = pan_pos;
   res.tilt_pos = 0;//tilt_pos;
