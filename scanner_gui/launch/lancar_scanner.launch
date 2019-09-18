@@ -1,0 +1,24 @@
+<launch>
+
+<arg name="laser_min" default="-0.785"/><!--45 graus-->
+<arg name="laser_max" default="0.785"/>
+
+<!--Lancando os motores de ca-->
+<include file="$(find dynamixel_workbench_controllers)/launch/multi_port.launch">
+</include>
+
+<!-- Lancando aqui o laser em si -->
+<node name="hokuyo" pkg="hokuyo_node" type="hokuyo_node" respawn="false" output="screen">
+<param name="calibrate_time" type="bool" value="false"/>
+<param name="port" type="string" value="/dev/ttyACM1"/>
+<param name="intensity" type="bool" value="false"/>
+
+<param name="skip" type="int" value="0"/>
+<param name="min_ang" type="double" value="$(arg laser_min)"/> <!--45 graus-->
+<param name="max_ang" type="double" value="$(arg laser_max)"/>
+</node>
+
+<node name="scanner" pkg="motor" type="scanner" output="screen">
+</node>
+
+</launch>

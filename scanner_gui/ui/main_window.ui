@@ -52,37 +52,43 @@
              <property name="geometry">
               <rect>
                <x>0</x>
-               <y>100</y>
+               <y>40</y>
                <width>441</width>
-               <height>331</height>
+               <height>231</height>
               </rect>
              </property>
              <layout class="QGridLayout" name="gridLayout">
               <item row="0" column="1">
                <widget class="QLabel" name="label_2">
                 <property name="text">
-                 <string>TextLabel</string>
+                 <string>Maximo</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
                 </property>
                </widget>
               </item>
               <item row="1" column="1">
-               <widget class="QDial" name="dial_2"/>
+               <widget class="QDial" name="dial_maxmotor"/>
               </item>
               <item row="1" column="0">
-               <widget class="QDial" name="dial"/>
+               <widget class="QDial" name="dial_minmotor"/>
               </item>
               <item row="0" column="0">
                <widget class="QLabel" name="label">
                 <property name="text">
-                 <string>TextLabel</string>
+                 <string>Minimo</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
                 </property>
                </widget>
               </item>
               <item row="2" column="0">
-               <widget class="QLineEdit" name="lineEdit"/>
+               <widget class="QLineEdit" name="lineEdit_minmotor"/>
               </item>
               <item row="2" column="1">
-               <widget class="QLineEdit" name="lineEdit_2"/>
+               <widget class="QLineEdit" name="lineEdit_maxmotor"/>
               </item>
              </layout>
             </widget>
@@ -96,38 +102,44 @@
             <widget class="QWidget" name="gridLayoutWidget_2">
              <property name="geometry">
               <rect>
-               <x>0</x>
-               <y>100</y>
-               <width>451</width>
-               <height>331</height>
+               <x>10</x>
+               <y>40</y>
+               <width>441</width>
+               <height>231</height>
               </rect>
              </property>
              <layout class="QGridLayout" name="gridLayout_2">
               <item row="0" column="1">
                <widget class="QLabel" name="label_3">
                 <property name="text">
-                 <string>TextLabel</string>
+                 <string>Maximo</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
                 </property>
                </widget>
               </item>
               <item row="1" column="1">
-               <widget class="QDial" name="dial_3"/>
+               <widget class="QDial" name="dial_maxlaser"/>
               </item>
               <item row="1" column="0">
-               <widget class="QDial" name="dial_4"/>
+               <widget class="QDial" name="dial_minlaser"/>
               </item>
               <item row="0" column="0">
                <widget class="QLabel" name="label_4">
                 <property name="text">
-                 <string>TextLabel</string>
+                 <string>Minimo</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
                 </property>
                </widget>
               </item>
               <item row="2" column="0">
-               <widget class="QLineEdit" name="lineEdit_3"/>
+               <widget class="QLineEdit" name="lineEdit_minlaser"/>
               </item>
               <item row="2" column="1">
-               <widget class="QLineEdit" name="lineEdit_4"/>
+               <widget class="QLineEdit" name="lineEdit_maxlaser"/>
               </item>
              </layout>
             </widget>
@@ -136,11 +148,47 @@
          </layout>
         </item>
         <item>
-         <widget class="QPushButton" name="pushButton">
-          <property name="text">
-           <string>Ligar scanner!</string>
-          </property>
-         </widget>
+         <layout class="QVBoxLayout" name="verticalLayout">
+          <item>
+           <widget class="QPushButton" name="pushButton_ligarscanner">
+            <property name="text">
+             <string>Ligar scanner!</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_inicio">
+            <property name="text">
+             <string>Enviar ao inicio</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <item>
+             <widget class="QPushButton" name="pushButton_aquisicao">
+              <property name="text">
+               <string>Comecar aquisicao</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="pushButton_fimaquisicao">
+              <property name="text">
+               <string>Finalizar aquisicao</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_visualizar">
+            <property name="text">
+             <string>Visualizar</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </widget>
