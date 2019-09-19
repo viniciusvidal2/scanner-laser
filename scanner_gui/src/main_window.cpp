@@ -37,7 +37,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     // Ajustes da ui
     setWindowIcon(QIcon(":/images/icon.png"));
     // Valores para o laser
-    laser_min = int(-M_PI/4); laser_max = int(M_PI/4);
+    laser_min = -M_PI/4; laser_max = M_PI/4;
     // Ajuste dos Dials
     int min_motor, max_motor; // DEGREES
     scan.get_limits(min_motor, max_motor);
@@ -53,6 +53,18 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.dial_maxlaser->setMinimum(-90);
     ui.dial_maxlaser->setMaximum( 90);
     ui.dial_maxlaser->setValue(int(RAD2DEG(laser_max)));
+    // Ajuste dos lineEdits
+    ui.lineEdit_minmotor->setText(QString::number(ui.dial_minmotor->value()));
+    ui.lineEdit_maxmotor->setText(QString::number(ui.dial_maxmotor->value()));
+    ui.lineEdit_minlaser->setText(QString::number(ui.dial_minlaser->value()));
+    ui.lineEdit_maxlaser->setText(QString::number(ui.dial_maxlaser->value()));
+    // Ajuste dos pushButtons
+    ui.pushButton_aquisicao->setEnabled(false);
+    ui.pushButton_fimaquisicao->setEnabled(false);
+    ui.pushButton_inicio->setEnabled(false);
+    ui.pushButton_visualizar->setEnabled(false);
+    ui.pushButton_aquisicao->setStyleSheet("background-color: rgb(100, 250, 100); color: rgb(0, 0, 0)");
+    ui.pushButton_fimaquisicao->setStyleSheet("background-color: rgb(70, 0, 0); color: rgb(250, 250, 250)");
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -60,14 +72,20 @@ MainWindow::~MainWindow() {}
 ///////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// PUSHBUTTONS ///////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////
-void MainWindow::on_pushButton_ligascanner_clicked(){
+void MainWindow::on_pushButton_ligarscanner_clicked(){
     // Ligar o laser e os motores dynamixel
+    std::string minl = std::to_string(DEG2RAD(ui.dial_minlaser->value()));
+    std::string maxl = std::to_string(DEG2RAD(ui.dial_maxlaser->value()));
+    std::replace(minl.begin(), minl.end(), ',', '.');
+    std::replace(maxl.begin(), maxl.end(), ',', '.');
     std::string ligar = "gnome-terminal -x sh -c 'roslaunch scanner_gui lancar_scanner.launch ";
-    ligar = ligar + "laser_min:=" + std::to_string(ui.dial_minlaser->value()) + " ";
-    ligar = ligar + "laser_max:=" + std::to_string(ui.dial_maxlaser->value()) + "'";
+    ligar = ligar + "laser_min:=" + minl + " ";
+    ligar = ligar + "laser_max:=" + maxl + "'";
     system(ligar.c_str());
     // Colocar dentro da classe os valores de inicio e fim de curso
     scan.set_course(double(ui.dial_minmotor->value()), double(ui.dial_maxmotor->value()));
+    // Habilita outro botao
+    ui.pushButton_inicio->setEnabled(true);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::on_pushButton_inicio_clicked(){
@@ -78,11 +96,15 @@ void MainWindow::on_pushButton_inicio_clicked(){
     // Espera chegar dando noticia
     ros::Rate r(1);
     int local;
-    while(scan.begin_reached(local)){
+    while(!scan.begin_reached(local)){
         ROS_INFO("Ainda estamos indo para o inicio de curso na posicao %d......", local);
         r.sleep();
     }
     ROS_WARN("Podemos comecar a aquisitar !!");
+    // Habilita o outro botao
+    ui.pushButton_aquisicao->setEnabled(true);
+    ui.pushButton_fimaquisicao->setEnabled(true);
+    ui.pushButton_visualizar->setEnabled(true);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::on_pushButton_aquisicao_clicked(){
@@ -171,6 +193,8 @@ void MainWindow::on_lineEdit_maxlaser_returnPressed(){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    // Terminar tudo no sistema para nao conflitar com a proxima abertura
+    system("gnome-terminal -x sh -c 'rosnode kill --all'");
     QMainWindow::closeEvent(event);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////

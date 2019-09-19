@@ -1,0 +1,7 @@
+<launch>
+
+<!--lancando somente a GUI aqui-->
+<node name="scanner_gui" pkg="scanner_gui" type="scanner_gui" output="screen">
+</node>
+
+</launch>

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>944</width>
-    <height>704</height>
+    <height>667</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,10 +20,22 @@
   <property name="locale">
    <locale language="English" country="Australia"/>
   </property>
+  <property name="iconSize">
+   <size>
+    <width>24</width>
+    <height>24</height>
+   </size>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout">
     <item>
      <widget class="QTabWidget" name="tab_manager">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
       <property name="minimumSize">
        <size>
         <width>100</width>
@@ -37,14 +49,26 @@
        <number>0</number>
       </property>
       <widget class="QWidget" name="tab_scanner">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <attribute name="title">
         <string>Scanner</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_2">
+        <property name="sizeConstraint">
+         <enum>QLayout::SetNoConstraint</enum>
+        </property>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetNoConstraint</enum>
+          </property>
           <item>
-           <widget class="QGroupBox" name="groupBox">
+           <widget class="QGroupBox" name="groupBox_motores">
             <property name="title">
              <string>Limites de giro dos motores</string>
             </property>
@@ -85,17 +109,31 @@
                </widget>
               </item>
               <item row="2" column="0">
-               <widget class="QLineEdit" name="lineEdit_minmotor"/>
+               <widget class="QLineEdit" name="lineEdit_minmotor">
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
               </item>
               <item row="2" column="1">
-               <widget class="QLineEdit" name="lineEdit_maxmotor"/>
+               <widget class="QLineEdit" name="lineEdit_maxmotor">
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
               </item>
              </layout>
             </widget>
            </widget>
           </item>
           <item>
-           <widget class="QGroupBox" name="groupBox_2">
+           <widget class="QGroupBox" name="groupBox_laser">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="title">
              <string>Limite de angulos de captura do laser</string>
             </property>
@@ -136,10 +174,18 @@
                </widget>
               </item>
               <item row="2" column="0">
-               <widget class="QLineEdit" name="lineEdit_minlaser"/>
+               <widget class="QLineEdit" name="lineEdit_minlaser">
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
               </item>
               <item row="2" column="1">
-               <widget class="QLineEdit" name="lineEdit_maxlaser"/>
+               <widget class="QLineEdit" name="lineEdit_maxlaser">
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
               </item>
              </layout>
             </widget>
@@ -149,6 +195,9 @@
         </item>
         <item>
          <layout class="QVBoxLayout" name="verticalLayout">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetNoConstraint</enum>
+          </property>
           <item>
            <widget class="QPushButton" name="pushButton_ligarscanner">
             <property name="text">
@@ -165,15 +214,57 @@
           </item>
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <property name="sizeConstraint">
+             <enum>QLayout::SetNoConstraint</enum>
+            </property>
+            <property name="topMargin">
+             <number>52</number>
+            </property>
+            <property name="bottomMargin">
+             <number>52</number>
+            </property>
             <item>
              <widget class="QPushButton" name="pushButton_aquisicao">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Ignored">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="baseSize">
+               <size>
+                <width>0</width>
+                <height>0</height>
+               </size>
+              </property>
               <property name="text">
                <string>Comecar aquisicao</string>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>16</width>
+                <height>16</height>
+               </size>
+              </property>
+              <property name="autoRepeatDelay">
+               <number>300</number>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QPushButton" name="pushButton_fimaquisicao">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="text">
                <string>Finalizar aquisicao</string>
               </property>

@@ -18,7 +18,7 @@
 <param name="max_ang" type="double" value="$(arg laser_max)"/>
 </node>
 
-<node name="scanner" pkg="motor" type="scanner" output="screen">
-</node>
+<!--<node name="scanner" pkg="motor" type="scanner" output="screen">-->
+<!--</node>-->
 
 </launch>

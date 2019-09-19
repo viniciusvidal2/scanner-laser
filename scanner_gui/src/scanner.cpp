@@ -47,7 +47,7 @@ void Scanner::init(){
     // Inicia variaveis do motor
     raw_min = 152; raw_max = 3967;
     deg_min =  13; deg_max =  348;
-    raw_tilt_hor = 2062;
+    raw_tilt_hor = 2100;
     deg_raw = (deg_max - deg_min) / (raw_max - raw_min); raw_deg = 1.0 / deg_raw;
     dentro = 3;
     inicio_curso = raw_min; fim_curso = raw_max;
@@ -170,7 +170,7 @@ double Scanner::raw2deg(double raw){
 void Scanner::send_begin_course(){
     dynamixel_workbench_msgs::JointCommand inicio_curso_cmd;
     inicio_curso_cmd.request.pan_pos  = inicio_curso;
-    inicio_curso_cmd.request.tilt_pos = 1965;
+    inicio_curso_cmd.request.tilt_pos = raw_tilt_hor;
     inicio_curso_cmd.request.unit     = "raw";
     if(comando_motor.call(inicio_curso_cmd))
         ROS_INFO("Enviamos ao inicio de curso, aguarde....");
@@ -180,7 +180,7 @@ void Scanner::send_begin_course(){
 void Scanner::start_course(){
     dynamixel_workbench_msgs::JointCommand comecar_cmd;
     comecar_cmd.request.pan_pos  = fim_curso;
-    comecar_cmd.request.tilt_pos = 1965;
+    comecar_cmd.request.tilt_pos = raw_tilt_hor;
     comecar_cmd.request.unit     = "raw";
     if(comando_motor.call(comecar_cmd))
         ROS_WARN("Mandamos para o fim de curso !");
@@ -238,12 +238,12 @@ void Scanner::callback(const sensor_msgs::LaserScanConstPtr &msg_laser, const na
         *acc += *cloud;
 
         // Finalizar processo se chegar ao fim do curso
-        if(abs(raw_atual - raw_max) < dentro){
+        if(abs(raw_atual - fim_curso) < dentro){
             ROS_INFO("Chegou no fim de curso, salvando nuvem na area de trabalho....");
             this->save_cloud();
             ROS_INFO("Nuvem salva, conferir la na boa.");
             dynamixel_workbench_msgs::JointCommand finalizar;
-            finalizar.request.pan_pos  = raw_max-5;
+            finalizar.request.pan_pos  = fim_curso;
             finalizar.request.tilt_pos = 1965;
             finalizar.request.unit     = "raw";
             if(comando_motor.call(finalizar))

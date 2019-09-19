@@ -58,7 +58,7 @@ public:
 public Q_SLOTS:
 
 private Q_SLOTS:
-        void on_pushButton_ligascanner_clicked();
+        void on_pushButton_ligarscanner_clicked();
         void on_pushButton_inicio_clicked();
         void on_pushButton_visualizar_clicked();
         void on_pushButton_aquisicao_clicked();
@@ -79,7 +79,7 @@ private:
 	QNode qnode;
         Scanner scan;
 
-        int laser_min, laser_max;
+        double laser_min, laser_max;
 };
 
 }  // namespace scanner_gui
