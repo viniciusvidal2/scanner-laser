@@ -120,12 +120,12 @@ bool MultiPort::setTorque(bool onoff)
 // VINICIUS - Suavizar os motores, velocidade esta a 150, mas pode aumentar
 void MultiPort::setSlope()
 {
-  pan_driver_->writeRegister("moving_speed", 5);
+  pan_driver_->writeRegister("moving_speed", 55);
   pan_driver_->writeRegister("cw_angle_limit" ,  133); // 11  degrees
   pan_driver_->writeRegister("ccw_angle_limit", 3979); // 349 degrees
 
-  pan_driver_->writeRegister("p_gain", 13);
-  pan_driver_->writeRegister("i_gain",  5);
+  pan_driver_->writeRegister("p_gain", 33);
+  pan_driver_->writeRegister("i_gain", 15);
   pan_driver_->writeRegister("d_gain",  5);
 
   tilt_driver_->writeRegister("moving_speed", 15);

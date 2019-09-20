@@ -194,6 +194,8 @@ void MainWindow::on_lineEdit_maxlaser_returnPressed(){
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     // Terminar tudo no sistema para nao conflitar com a proxima abertura
+    system("gnome-terminal -x sh -c 'rosservice call /joint_command raw 2118 1900'"); // Posiciona o motor no minimo cuidadosamente ao desligar
+    sleep(3);
     system("gnome-terminal -x sh -c 'rosnode kill --all'");
     QMainWindow::closeEvent(event);
 }

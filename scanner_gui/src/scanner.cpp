@@ -27,6 +27,13 @@ Scanner::Scanner(int argc, char **argv, QMutex *nmutex):init_argc(argc),
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 Scanner::~Scanner(){
+    dynamixel_workbench_msgs::JointCommand deitar;
+    deitar.request.pan_pos  = 0;
+    deitar.request.tilt_pos = 1965;
+    deitar.request.unit     = "raw";
+    if(comando_motor.call(deitar))
+        ROS_WARN("Deitando o robo...");
+    sleep(3);
     if(ros::isStarted()){
         ros::shutdown();
         ros::waitForShutdown();
@@ -49,8 +56,11 @@ void Scanner::init(){
     deg_min =  13; deg_max =  348;
     raw_tilt_hor = 2100;
     deg_raw = (deg_max - deg_min) / (raw_max - raw_min); raw_deg = 1.0 / deg_raw;
-    dentro = 3;
+    dentro = 2;
     inicio_curso = raw_min; fim_curso = raw_max;
+
+    intervalo = 3; // Passo do motor para cada aquisicao
+    ponto_final_temp = inicio_curso; // A cada iteracao vai incrementar aqui para novo ponto final
 
     // Comecar a aquisicao
     comecar = false;
@@ -109,6 +119,7 @@ void Scanner::init(){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::set_course(double min, double max){
     inicio_curso = deg2raw(min); fim_curso = deg2raw(max);
+    ponto_final_temp = inicio_curso;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::set_acquisition(bool start){
@@ -179,12 +190,21 @@ void Scanner::send_begin_course(){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::start_course(){
     dynamixel_workbench_msgs::JointCommand comecar_cmd;
-    comecar_cmd.request.pan_pos  = fim_curso;
+    comecar_cmd.request.pan_pos  = ponto_final_temp + intervalo; // Primeiro ponta pe
     comecar_cmd.request.tilt_pos = raw_tilt_hor;
     comecar_cmd.request.unit     = "raw";
     if(comando_motor.call(comecar_cmd))
-        ROS_WARN("Mandamos para o fim de curso !");
+        ROS_WARN("Mandamos comecar a aquisicao !");
     comecar = true; // Podemos aquisitar
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Scanner::send_next_point(int end_point){
+    dynamixel_workbench_msgs::JointCommand avancar;
+    avancar.request.pan_pos  = end_point;
+    avancar.request.tilt_pos = raw_tilt_hor;
+    avancar.request.unit     = "raw";
+    if(comando_motor.call(avancar))
+        ROS_WARN("Mandamos para o ponto %d !", end_point);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f Scanner::transformFromRaw(double raw){
@@ -225,33 +245,47 @@ void Scanner::callback(const sensor_msgs::LaserScanConstPtr &msg_laser, const na
     /// DAQUI PRA FRENTE VAI VALER ///
     if(comecar){
 
-        ROS_INFO("Aquisitando ....");
-        // Começando, converter leitura para nuvem PCL
-        sensor_msgs::PointCloud2 msg_cloud;
-        projector.projectLaser(*msg_laser, msg_cloud);
-        PointCloud<PointXYZ>::Ptr cloud (new PointCloud<PointXYZ>());
-        fromROSMsg(msg_cloud, *cloud);
-        // Aplicar transformada de acordo com o angulo
-        Eigen::Matrix4f T = transformFromRaw(msg_motor->pose.pose.position.x);
-        transformPointCloud(*cloud, *cloud, T);
-        // Acumular nuvem
-        *acc += *cloud;
+        if(abs(raw_atual - ponto_final_temp) < dentro){
+            ROS_INFO("Aquisitando ....");
+            // Começando, converter leitura para nuvem PCL
+            sensor_msgs::PointCloud2 msg_cloud;
+            projector.projectLaser(*msg_laser, msg_cloud);
+            PointCloud<PointXYZ>::Ptr cloud (new PointCloud<PointXYZ>());
+            fromROSMsg(msg_cloud, *cloud);
+            // Aplicar transformada de acordo com o angulo
+            Eigen::Matrix4f T = transformFromRaw(msg_motor->pose.pose.position.x);
+            transformPointCloud(*cloud, *cloud, T);
+            // Acumular nuvem
+            *acc += *cloud;
+            // Setar novo ponto final da aquisicao
+            ponto_final_temp += intervalo;
+            send_next_point(ponto_final_temp);
 
-        // Finalizar processo se chegar ao fim do curso
-        if(abs(raw_atual - fim_curso) < dentro){
-            ROS_INFO("Chegou no fim de curso, salvando nuvem na area de trabalho....");
-            this->save_cloud();
-            ROS_INFO("Nuvem salva, conferir la na boa.");
-            dynamixel_workbench_msgs::JointCommand finalizar;
-            finalizar.request.pan_pos  = fim_curso;
-            finalizar.request.tilt_pos = 1965;
-            finalizar.request.unit     = "raw";
-            if(comando_motor.call(finalizar))
-                ROS_INFO("Baixando de leve o motor para nao machucar aqui...");
-            sleep(5);
-            // Negando a flag novamente
-            comecar = false;
+            // Finalizar processo se chegar ao fim do curso
+            if(abs(raw_atual - fim_curso) < dentro){
+                ROS_INFO("Chegou no fim de curso, salvando nuvem na area de trabalho....");
+                this->save_cloud();
+                ROS_INFO("Nuvem salva, conferir la na boa.");
+                dynamixel_workbench_msgs::JointCommand finalizar;
+                finalizar.request.pan_pos  = fim_curso;
+                finalizar.request.tilt_pos = 1965;
+                finalizar.request.unit     = "raw";
+                if(comando_motor.call(finalizar))
+                    ROS_INFO("Baixando de leve o motor para nao machucar aqui...");
+                sleep(5);
+                // Negando a flag novamente
+                comecar = false;
+                // Resetando o ponto final
+                ponto_final_temp = inicio_curso;
+            }// fim if fim de curso
+
         }
+//        } else {
+//            if(permitido_avancar){
+//                send_next_point(ponto_final_temp);
+//                permitido_avancar = false;
+//            }
+//        }
 
     }
 }

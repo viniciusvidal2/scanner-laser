@@ -92,6 +92,7 @@ private:
     double raw2deg(double raw);
     Eigen::Matrix4f transformFromRaw(double raw);
     void callback(const sensor_msgs::LaserScanConstPtr& msg_laser, const nav_msgs::OdometryConstPtr& msg_motor);
+    void send_next_point(int end_point);
 
 
     /// Variaveis ///
@@ -106,7 +107,10 @@ private:
     double inicio_curso, fim_curso; // em unidades RAW
     double raw_atual;
 
+    // Controle do movimento do motor
     ros::ServiceClient comando_motor;
+    int intervalo;
+    int ponto_final_temp;
 
     bool comecar;
 
