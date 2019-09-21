@@ -266,13 +266,6 @@ void Scanner::callback(const sensor_msgs::LaserScanConstPtr &msg_laser, const na
                 ROS_INFO("Chegou no fim de curso, salvando nuvem na area de trabalho....");
                 this->save_cloud();
                 ROS_INFO("Nuvem salva, conferir la na boa.");
-                dynamixel_workbench_msgs::JointCommand finalizar;
-                finalizar.request.pan_pos  = fim_curso;
-                finalizar.request.tilt_pos = 1965;
-                finalizar.request.unit     = "raw";
-                if(comando_motor.call(finalizar))
-                    ROS_INFO("Baixando de leve o motor para nao machucar aqui...");
-                sleep(5);
                 // Negando a flag novamente
                 comecar = false;
                 // Resetando o ponto final
