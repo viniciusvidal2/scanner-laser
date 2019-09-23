@@ -30,6 +30,10 @@
 #include <pcl/point_types.h>
 #include <pcl/io/ply_io.h>
 #include <pcl_ros/transforms.h>
+#include <pcl/features/normal_3d_omp.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/filters/conditional_removal.h>
+#include <pcl/filters/extract_indices.h>
 
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_ros/transform_broadcaster.h>
@@ -77,6 +81,7 @@ public:
     void start_course();
     bool begin_reached(int &r);
     bool save_cloud();
+    void set_resolution(double deg);
 
     QMutex* mutex;
 

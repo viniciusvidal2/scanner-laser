@@ -130,6 +130,12 @@ bool Scanner::get_acquisition(){
     return comecar;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+void Scanner::set_resolution(double deg){
+    intervalo = int(deg * (raw_max - raw_min)/(deg_max - deg_min));
+    if(intervalo <= dentro + 1)
+        intervalo = dentro + 2;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
 bool Scanner::begin_reached(int &r){
     if(abs(raw_atual - inicio_curso) > dentro){
         r = int(raw2deg(raw_atual));
@@ -141,28 +147,58 @@ bool Scanner::begin_reached(int &r){
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 bool Scanner::save_cloud(){
+    if(acc->size() > 10){
+    /// Calcular normais apontadas para o centro (origem) ///
+    // Calcula centro da camera aqui
+    Eigen::Vector3f C = Eigen::Vector3f::Zero();
+    // Estima normais viradas para o centro da camera
+    NormalEstimationOMP<PointXYZ, Normal> ne;
+    ne.setInputCloud(acc);
+    search::KdTree<PointXYZ>::Ptr tree (new search::KdTree<PointXYZ>());
+    ne.setSearchMethod(tree);
+    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
+    ne.setKSearch(20);
+    ne.setNumberOfThreads(8);
+
+    ne.compute(*cloud_normals);
+
+    PointCloud<PointNormal> acc_normal;
+    concatenateFields(*acc, *cloud_normals, acc_normal);
+
+    vector<int> indicesnan;
+    removeNaNNormalsFromPointCloud(acc_normal, acc_normal, indicesnan);
+
+    // Forcar virar as normais na marra
+    for(unsigned long i=0; i < acc_normal.size(); i++){
+        Eigen::Vector3f normal, cp;
+        normal << acc_normal.points[i].normal_x, acc_normal.points[i].normal_y, acc_normal.points[i].normal_z;
+        cp << C(0)-acc_normal.points[i].x, C(1)-acc_normal.points[i].y, C(2)-acc_normal.points[i].z;
+        float cos_theta = (normal.dot(cp))/(normal.norm()*cp.norm());
+        if(cos_theta <= 0){ // Esta apontando errado, deve inverter
+            acc_normal.points[i].normal_x = -acc_normal.points[i].normal_x;
+            acc_normal.points[i].normal_y = -acc_normal.points[i].normal_y;
+            acc_normal.points[i].normal_z = -acc_normal.points[i].normal_z;
+        }
+    }
     // Ver o tempo para diferenciar bags gravadas automaticamente
     time_t t = time(0);
     struct tm * now = localtime( & t );
-    std::string year, month, day, hour, minutes, home;
+    std::string hour, minutes, home;
     char const* tmp = getenv("HOME");
     if(tmp)
         home = std::string(tmp);
-    //    year    = boost::lexical_cast<std::string>(now->tm_year + 1900);
-    //    month   = boost::lexical_cast<std::string>(now->tm_mon + 1);
-    //    day     = boost::lexical_cast<std::string>(now->tm_mday);
     hour    = boost::lexical_cast<std::string>(now->tm_hour);
     minutes = boost::lexical_cast<std::string>(now->tm_min );
     std::string filename = home + "/Desktop/laser_" + hour + "h_" + minutes + "m.ply";
 
     // Checar se tudo certo para salvar a nuvem
-    if(acc->size() > 10){
-        if(pcl::io::savePLYFileASCII(filename, *acc))
-            return true;
-        else
-            return false;
+    if(pcl::io::savePLYFileASCII(filename, acc_normal))
+        return true;
+    else
+        return false;
     } else {
         ROS_WARN("Nao tem nuvem ainda seu imbecil !");
+        return false;
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////

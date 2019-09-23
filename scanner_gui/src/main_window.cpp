@@ -13,7 +13,6 @@
 #include <QMessageBox>
 #include <iostream>
 #include "../include/scanner_gui/main_window.hpp"
-#include "../include/scanner_gui/registra_nuvem.hpp"
 
 /*****************************************************************************
 ** Namespaces
@@ -39,7 +38,9 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     // Ajustes da ui
     setWindowIcon(QIcon(":/images/icon.png"));
     // Valores para o laser
-    laser_min = -M_PI/4; laser_max = M_PI/4;
+    laser_min = -M_PI/3; laser_max = M_PI/3;
+
+    /// --- ABA 1 --- ///
     // Ajuste dos Dials
     int min_motor, max_motor; // DEGREES
     scan.get_limits(min_motor, max_motor);
@@ -60,6 +61,8 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.lineEdit_maxmotor->setText(QString::number(ui.dial_maxmotor->value()));
     ui.lineEdit_minlaser->setText(QString::number(ui.dial_minlaser->value()));
     ui.lineEdit_maxlaser->setText(QString::number(ui.dial_maxlaser->value()));
+    ui.lineEdit_resolucao->setEnabled(false);
+    ui.label_resolucao->setEnabled(false);
     // Ajuste dos pushButtons
     ui.pushButton_aquisicao->setEnabled(false);
     ui.pushButton_fimaquisicao->setEnabled(false);
@@ -67,6 +70,29 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.pushButton_visualizar->setEnabled(false);
     ui.pushButton_aquisicao->setStyleSheet("background-color: rgb(100, 250, 100); color: rgb(0, 0, 0)");
     ui.pushButton_fimaquisicao->setStyleSheet("background-color: rgb(70, 0, 0); color: rgb(250, 250, 250)");
+
+    /// --- ABA 2 --- ///
+    ui.checkBox_icp->setChecked(true); // Checkbox do icp começa a principio valendo
+    // Ajustando Sliders com limites e valores iniciais
+    ui.horizontalSlider_x->setMinimum(-(ui.lineEdit_limitex->text().toFloat()));
+    ui.horizontalSlider_x->setMaximum(ui.lineEdit_limitex->text().toFloat());
+    ui.horizontalSlider_x->setValue(0);
+    ui.horizontalSlider_y->setMinimum(-(ui.lineEdit_limitey->text().toFloat()));
+    ui.horizontalSlider_y->setMaximum(ui.lineEdit_limitey->text().toFloat());
+    ui.horizontalSlider_y->setValue(0);
+    ui.horizontalSlider_z->setMinimum(-(ui.lineEdit_limitez->text().toFloat()));
+    ui.horizontalSlider_z->setMaximum(ui.lineEdit_limitez->text().toFloat());
+    ui.horizontalSlider_z->setValue(0);
+    // Ajustando Dials com limites e valores iniciais -> GRAUS AQUI
+    ui.dial_x->setMinimum(-180);
+    ui.dial_x->setMaximum(180);
+    ui.dial_x->setValue(0);
+    ui.dial_y->setMinimum(-180);
+    ui.dial_y->setMaximum(180);
+    ui.dial_y->setValue(0);
+    ui.dial_z->setMinimum(-180);
+    ui.dial_z->setMaximum(180);
+    ui.dial_z->setValue(0);
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -85,11 +111,16 @@ void MainWindow::on_pushButton_ligarscanner_clicked(){
     std::replace(maxl.begin(), maxl.end(), ',', '.');
     std::string ligar = "gnome-terminal -x sh -c 'roslaunch scanner_gui lancar_scanner.launch ";
     ligar = ligar + "laser_min:=" + minl + " ";
-    ligar = ligar + "laser_max:=" + maxl + "'";
+    ligar = ligar + "laser_max:=" + maxl + " ";
+    if(ui.checkBox_intensidades->isChecked()){
+        ligar = ligar + "capt_intensidade:=true'";
+    } else {
+        ligar = ligar + "capt_intensidade:=false'";
+    }
     system(ligar.c_str());
     // Colocar dentro da classe os valores de inicio e fim de curso
     scan.set_course(double(ui.dial_minmotor->value()), double(ui.dial_maxmotor->value()));
-    // Habilita outro botao
+    // Habilita a sequencia
     ui.pushButton_inicio->setEnabled(true);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -110,9 +141,13 @@ void MainWindow::on_pushButton_inicio_clicked(){
     ui.pushButton_aquisicao->setEnabled(true);
     ui.pushButton_fimaquisicao->setEnabled(true);
     ui.pushButton_visualizar->setEnabled(true);
+    ui.lineEdit_resolucao->setEnabled(true);
+    ui.label_resolucao->setEnabled(true);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::on_pushButton_aquisicao_clicked(){
+    // Pega a resolucao definida pelo lineEdit
+    scan.set_resolution(ui.lineEdit_resolucao->text().toDouble());
     // Seta a variavel de controle que libera o callback funcionar
     scan.set_acquisition(true);
     // Comando para o fim de curso
@@ -216,8 +251,8 @@ void MainWindow::on_pushButton_nuvemfonte_clicked(){
 
 /// Botao para iniciar os visualizadores para os topicos de nuvens alvo, fonte modificada e acumulada
 void MainWindow::on_pushButton_iniciararquivos_clicked(){
-    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/tgt_src.rviz'");
-//    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/acumulada_ajustada.rviz'");
+    rn.set_inicio_processo(true);
+    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/laser_ws/src/scanner-laser/scanner_gui/resources/tgtsrc.rviz'");
 }
 
 /// Sliders sao liberados, a nuvem pode ser transformada
