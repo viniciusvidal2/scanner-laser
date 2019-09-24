@@ -61,8 +61,8 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.lineEdit_maxmotor->setText(QString::number(ui.dial_maxmotor->value()));
     ui.lineEdit_minlaser->setText(QString::number(ui.dial_minlaser->value()));
     ui.lineEdit_maxlaser->setText(QString::number(ui.dial_maxlaser->value()));
-    ui.lineEdit_resolucao->setEnabled(false);
-    ui.label_resolucao->setEnabled(false);
+    ui.lineEdit_viagens->setEnabled(false);
+    ui.label_viagens->setEnabled(false);
     // Ajuste dos pushButtons
     ui.pushButton_aquisicao->setEnabled(false);
     ui.pushButton_fimaquisicao->setEnabled(false);
@@ -94,12 +94,38 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.dial_z->setMaximum(180);
     ui.dial_z->setValue(0);
 
+    // Comeca a funcao que chama o preenchimento da barra de progresso
+    std::thread thread_obj(&MainWindow::update_progressBar, this, 1);
+    thread_obj.join();
+
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 MainWindow::~MainWindow() {}
 
 /// --------------------------------- ABA 1 ------------------------------------------- ///
 
+///////////////////////////////////////////////////////////////////////////////////////////
+void MainWindow::update_progressBar(int start){
+    ros::Rate r(1);
+    while(ros::ok()){
+        int viagem = scan.get_current_trip(), posicao = scan.get_current_position();
+        if(posicao != 0){
+            int limite_min, limite_max;
+            scan.get_limits(limite_min, limite_max);
+
+            int fatia = 100 / ui.lineEdit_viagens->text().toInt();
+            int valor = fatia*(viagem - 1);
+            if(int(remainder(viagem, 2)) == 1){
+                valor += int(double(fatia) * double(posicao - limite_min)/double(limite_max - limite_min));
+            } else {
+                valor += int(double(fatia) * double(limite_max - posicao)/double(limite_max - limite_min));
+            }
+            r.sleep();
+
+            ui.progressBar->setValue(valor);
+        }
+    }
+}
 ///////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// PUSHBUTTONS ///////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -112,6 +138,7 @@ void MainWindow::on_pushButton_ligarscanner_clicked(){
     std::string ligar = "gnome-terminal -x sh -c 'roslaunch scanner_gui lancar_scanner.launch ";
     ligar = ligar + "laser_min:=" + minl + " ";
     ligar = ligar + "laser_max:=" + maxl + " ";
+    ligar = ligar + "set_pan_moving_speed:=" + ui.lineEdit_velocidadepan->text().toStdString() + " ";
     if(ui.checkBox_intensidades->isChecked()){
         ligar = ligar + "capt_intensidade:=true'";
     } else {
@@ -141,13 +168,13 @@ void MainWindow::on_pushButton_inicio_clicked(){
     ui.pushButton_aquisicao->setEnabled(true);
     ui.pushButton_fimaquisicao->setEnabled(true);
     ui.pushButton_visualizar->setEnabled(true);
-    ui.lineEdit_resolucao->setEnabled(true);
-    ui.label_resolucao->setEnabled(true);
+    ui.lineEdit_viagens->setEnabled(true);
+    ui.label_viagens->setEnabled(true);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::on_pushButton_aquisicao_clicked(){
     // Pega a resolucao definida pelo lineEdit
-    scan.set_resolution(ui.lineEdit_resolucao->text().toDouble());
+    scan.set_trips(ui.lineEdit_viagens->text().toDouble());
     // Seta a variavel de controle que libera o callback funcionar
     scan.set_acquisition(true);
     // Comando para o fim de curso

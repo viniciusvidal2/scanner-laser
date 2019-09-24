@@ -54,6 +54,7 @@ void Scanner::init(){
     // Inicia variaveis do motor
     raw_min = 152; raw_max = 3967;
     deg_min =  13; deg_max =  348;
+    raw_atual = 0; // Seguranca
     raw_tilt_hor = 2100;
     deg_raw = (deg_max - deg_min) / (raw_max - raw_min); raw_deg = 1.0 / deg_raw;
     dentro = 2;
@@ -61,6 +62,9 @@ void Scanner::init(){
 
     intervalo = 3; // Passo do motor para cada aquisicao
     ponto_final_temp = inicio_curso; // A cada iteracao vai incrementar aqui para novo ponto final
+
+    viagens = 1; // Comecando default valor de viagens total
+    viagem_atual = 1; // Qual viagem esta sendo realizada
 
     // Comecar a aquisicao
     comecar = false;
@@ -120,6 +124,10 @@ void Scanner::init(){
 void Scanner::set_course(double min, double max){
     inicio_curso = deg2raw(min); fim_curso = deg2raw(max);
     ponto_final_temp = inicio_curso;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Scanner::set_trips(int t){
+    viagens = t; viagem_atual = 1;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::set_acquisition(bool start){
@@ -206,6 +214,14 @@ void Scanner::get_limits(int &minm, int &maxm){
     minm = int(deg_min); maxm = int(deg_max);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+int Scanner::get_current_position(){
+    return int(raw2deg(raw_atual));
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+int Scanner::get_current_trip(){
+    return viagem_atual;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
 double Scanner::deg2raw(double deg){
     return (deg - deg_min)*raw_deg + raw_min;
 }
@@ -225,13 +241,31 @@ void Scanner::send_begin_course(){
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::start_course(){
-    dynamixel_workbench_msgs::JointCommand comecar_cmd;
-    comecar_cmd.request.pan_pos  = ponto_final_temp + intervalo; // Primeiro ponta pe
-    comecar_cmd.request.tilt_pos = raw_tilt_hor;
-    comecar_cmd.request.unit     = "raw";
-    if(comando_motor.call(comecar_cmd))
+//    dynamixel_workbench_msgs::JointCommand comecar_cmd;
+//    comecar_cmd.request.pan_pos  = ponto_final_temp + intervalo; // Primeiro ponta pe
+//    comecar_cmd.request.tilt_pos = raw_tilt_hor;
+//    comecar_cmd.request.unit     = "raw";
+//    if(comando_motor.call(comecar_cmd))
         ROS_WARN("Mandamos comecar a aquisicao !");
     comecar = true; // Podemos aquisitar
+    viagem_atual = 1; // Garantir que estamos na primeira viagem ainda
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Scanner::send_to_opposite_edge(int t){
+    dynamixel_workbench_msgs::JointCommand cmd;
+    if(int(remainder(t, 2)) == 1){ // Estamos indo ao fim de curso
+        cmd.request.pan_pos  = raw_max; // Primeiro ponta pe
+        cmd.request.tilt_pos = raw_tilt_hor;
+        cmd.request.unit     = "raw";
+        if(comando_motor.call(cmd))
+            ROS_WARN("Mandamos para o fim de curso %d, viagem #%d !", raw_max, viagem_atual);
+    } else { // Estamos voltando ao inicio
+        cmd.request.pan_pos  = raw_min; // Primeiro ponta pe
+        cmd.request.tilt_pos = raw_tilt_hor;
+        cmd.request.unit     = "raw";
+        if(comando_motor.call(cmd))
+            ROS_WARN("Mandamos para o inicio de curso %d, viagem #%d !", raw_min, viagem_atual);
+    }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::send_next_point(int end_point){
@@ -281,40 +315,43 @@ void Scanner::callback(const sensor_msgs::LaserScanConstPtr &msg_laser, const na
     /// DAQUI PRA FRENTE VAI VALER ///
     if(comecar){
 
-        if(abs(raw_atual - ponto_final_temp) < dentro){
-            ROS_INFO("Aquisitando ....");
-            // Começando, converter leitura para nuvem PCL
-            sensor_msgs::PointCloud2 msg_cloud;
-            projector.projectLaser(*msg_laser, msg_cloud);
-            PointCloud<PointXYZ>::Ptr cloud (new PointCloud<PointXYZ>());
-            fromROSMsg(msg_cloud, *cloud);
-            // Aplicar transformada de acordo com o angulo
-            Eigen::Matrix4f T = transformFromRaw(msg_motor->pose.pose.position.x);
-            transformPointCloud(*cloud, *cloud, T);
-            // Acumular nuvem
-            *acc += *cloud;
-            // Setar novo ponto final da aquisicao
-            ponto_final_temp += intervalo;
-            send_next_point(ponto_final_temp);
-
-            // Finalizar processo se chegar ao fim do curso
-            if(abs(raw_atual - fim_curso) < dentro){
-                ROS_INFO("Chegou no fim de curso, salvando nuvem na area de trabalho....");
-                this->save_cloud();
-                ROS_INFO("Nuvem salva, conferir la na boa.");
-                // Negando a flag novamente
-                comecar = false;
-                // Resetando o ponto final
-                ponto_final_temp = inicio_curso;
-            }// fim if fim de curso
-
+        // Controle para enviar comandos de acordo com a viagem
+        if(viagem_atual <= viagens){
+            if(abs(raw_atual - raw_min) < dentro && int(remainder(viagem_atual, 2)) == 1){
+                send_to_opposite_edge(viagem_atual);
+                viagem_atual++;
+            }
+            if(abs(raw_atual - raw_max) < dentro && int(remainder(viagem_atual, 2)) == 0){
+                send_to_opposite_edge(viagem_atual);
+                viagem_atual++;
+            }
         }
-//        } else {
-//            if(permitido_avancar){
-//                send_next_point(ponto_final_temp);
-//                permitido_avancar = false;
-//            }
-//        }
+
+        ROS_INFO("Aquisitando ....");
+        // Começando, converter leitura para nuvem PCL
+        sensor_msgs::PointCloud2 msg_cloud;
+        projector.projectLaser(*msg_laser, msg_cloud);
+        PointCloud<PointXYZ>::Ptr cloud (new PointCloud<PointXYZ>());
+        fromROSMsg(msg_cloud, *cloud);
+        // Aplicar transformada de acordo com o angulo
+        Eigen::Matrix4f T = transformFromRaw(msg_motor->pose.pose.position.x);
+        transformPointCloud(*cloud, *cloud, T);
+        // Acumular nuvem
+        *acc += *cloud;
+        // Setar novo ponto final da aquisicao
+        ponto_final_temp += intervalo;
+        send_next_point(ponto_final_temp);
+
+        // Finalizar processo se chegar ao fim do curso
+        if(viagem_atual > viagens){
+            ROS_INFO("Chegou no fim de curso, salvando nuvem na area de trabalho....");
+            this->save_cloud();
+            ROS_INFO("Nuvem salva, conferir la na boa.");
+            // Negando a flag novamente
+            comecar = false;
+            // Resetando o ponto final
+            ponto_final_temp = inicio_curso;
+        }// fim if fim de curso
 
     }
 }

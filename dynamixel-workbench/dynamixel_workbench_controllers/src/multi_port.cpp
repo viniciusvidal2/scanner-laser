@@ -59,6 +59,7 @@ bool MultiPort::loadDynamixel()
   pan_info->lode_info.protocol_version = node_handle_.param<float>("pan/protocol_version", 2.0);
 
   pan_info->model_id                   = node_handle_.param<int>("pan/id", 2);
+  pan_moving_speed                     = node_handle_.param<int>("pan/moving_speed", 10);
 
   dynamixel_info_.push_back(pan_info);
 
@@ -117,10 +118,10 @@ bool MultiPort::setTorque(bool onoff)
   return true;
 }
 
-// VINICIUS - Suavizar os motores, velocidade esta a 150, mas pode aumentar
+// VINICIUS - Suavizar e controlar os motores
 void MultiPort::setSlope()
 {
-  pan_driver_->writeRegister("moving_speed", 55);
+  pan_driver_->writeRegister("moving_speed", pan_moving_speed);
   pan_driver_->writeRegister("cw_angle_limit" ,  133); // 11  degrees
   pan_driver_->writeRegister("ccw_angle_limit", 3979); // 349 degrees
 

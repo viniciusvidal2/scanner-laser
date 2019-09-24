@@ -78,10 +78,14 @@ public:
     void set_acquisition(bool start);
     bool get_acquisition();
     void send_begin_course();
+    void send_to_opposite_edge(int t);
     void start_course();
     bool begin_reached(int &r);
     bool save_cloud();
     void set_resolution(double deg);
+    void set_trips(int t);
+    int get_current_position();
+    int get_current_trip();
 
     QMutex* mutex;
 
@@ -116,6 +120,8 @@ private:
     ros::ServiceClient comando_motor;
     int intervalo;
     int ponto_final_temp;
+
+    int viagens, viagem_atual;
 
     bool comecar;
 

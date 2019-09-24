@@ -3,9 +3,11 @@
 <arg name="laser_min" default="-0.785"/> <!--45 graus-->
 <arg name="laser_max" default="0.785"/>
 <arg name="capt_intensidade" default="false"/> <!--capturar as intensidades da leitura do laser-->
+<arg name="set_pan_moving_speed" default="10"/>
 
 <!--Lancando os motores de ca-->
 <include file="$(find dynamixel_workbench_controllers)/launch/multi_port.launch">
+    <arg name="pan_moving_speed" value="$(arg set_pan_moving_speed)"/>
 </include>
 
 <!-- Lancando aqui o laser em si -->

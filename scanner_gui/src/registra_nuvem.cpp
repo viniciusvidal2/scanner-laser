@@ -234,8 +234,8 @@ Eigen::Matrix4f RegistraNuvem::icp(const PointCloud<PointT>::Ptr src,
     } else {
         leaf_size = profundidade_icp;
     }
-//    filter_grid(temp_src, leaf_size);
-//    filter_grid(temp_tgt, leaf_size);
+    filter_grid(temp_src, leaf_size);
+    filter_grid(temp_tgt, leaf_size);
 
     Eigen::Matrix4f T_icp = T;
 
@@ -273,22 +273,22 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
     // Nova pasta no Desktop
     char* home;
     home = getenv("HOME");
-    std::string pasta_final = std::string(home)+"/Desktop/"+pasta.toStdString();
+    std::string pasta_final = std::string(home)+"/Desktop/";//+pasta.toStdString();
 
     // Criar nova pasta na area de trabalho
-    const int dir_err = mkdir(pasta_final.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    if( !(dir_err == -1) ){ // Nao houve erro na criacao do diretorio
+//    const int dir_err = mkdir(pasta_final.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+//    if( !(dir_err == -1) ){ // Nao houve erro na criacao do diretorio
         // Gravar a nuvem registrada no diretorio final, junto com a nuvem fonte e a alvo deslocadas
-        std::string arquivo_nuvem_final = pasta_final + "/nuvem_final.ply";
-        std::string arquivo_fonte_final = pasta_final + "/nuvem_fonte.ply";
-        std::string arquivo_alvo_final  = pasta_final + "/nuvem_alvo.ply" ;
-        savePLYFileASCII(arquivo_fonte_final, *src_temp );
-        savePLYFileASCII(arquivo_alvo_final , *tgt      );
+        std::string arquivo_nuvem_final = pasta_final + pasta.toStdString() + ".ply";//"/nuvem_final.ply";
+//        std::string arquivo_fonte_final = pasta_final + "/nuvem_fonte.ply";
+//        std::string arquivo_alvo_final  = pasta_final + "/nuvem_alvo.ply" ;
+//        savePLYFileASCII(arquivo_fonte_final, *src_temp );
+//        savePLYFileASCII(arquivo_alvo_final , *tgt      );
         savePLYFileASCII(arquivo_nuvem_final, *acumulada);
 
         ROS_INFO("Arquivos criados com sucesso.");
 
-    } // Fim do if para mkdir
+//    } // Fim do if para mkdir
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Vector3f RegistraNuvem::calcula_centroide(PointCloud<PointT>::Ptr cloud){

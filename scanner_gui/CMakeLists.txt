@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 2.8.0)
 project(scanner_gui)
 
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++11 -pthread)
 
 ##############################################################################
 # Catkin

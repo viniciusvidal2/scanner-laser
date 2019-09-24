@@ -32,6 +32,7 @@
 #include <cstdlib>
 #include <csignal>
 #include <ctime>
+#include <thread>
 
 /*****************************************************************************
 ** Namespace
@@ -108,6 +109,8 @@ private:
         RegistraNuvem rn;
 
         double laser_min, laser_max;
+
+        void update_progressBar(int start);
 };
 
 }  // namespace scanner_gui

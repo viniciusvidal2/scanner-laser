@@ -199,11 +199,29 @@
            <enum>QLayout::SetNoConstraint</enum>
           </property>
           <item>
-           <widget class="QCheckBox" name="checkBox_intensidades">
-            <property name="text">
-             <string>Capturar intensidades do Laser</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_6">
+            <item>
+             <widget class="QCheckBox" name="checkBox_intensidades">
+              <property name="text">
+               <string>Capturar intensidades do Laser</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="label_5">
+              <property name="text">
+               <string>Velocidade de PAN (5 - 50):</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="lineEdit_velocidadepan">
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <widget class="QPushButton" name="pushButton_ligarscanner">
@@ -222,16 +240,19 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
-             <widget class="QLabel" name="label_resolucao">
+             <widget class="QLabel" name="label_viagens">
               <property name="text">
-               <string>Resolucao do laser para aquisicao (em graus, minimo 0.5):</string>
+               <string>Numero de viagens durante a colera</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="lineEdit_resolucao">
+             <widget class="QLineEdit" name="lineEdit_viagens">
               <property name="text">
                <string>1</string>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
               </property>
              </widget>
             </item>
@@ -300,7 +321,7 @@
           <item>
            <widget class="QProgressBar" name="progressBar">
             <property name="value">
-             <number>24</number>
+             <number>0</number>
             </property>
            </widget>
           </item>
@@ -837,7 +858,7 @@
           <item>
            <widget class="QLabel" name="label_9">
             <property name="text">
-             <string>Nome da pasta final, que fica na area de trabalho com os arquivos calculados:</string>
+             <string>Nome do arquivo final .ply salvo na area de trabalho:</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignCenter</set>
