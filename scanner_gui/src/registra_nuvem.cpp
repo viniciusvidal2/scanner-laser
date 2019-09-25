@@ -23,8 +23,10 @@ RegistraNuvem::RegistraNuvem(int argc, char** argv):init_argc(argc), init_argv(a
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 RegistraNuvem::~RegistraNuvem(){
-    if(ros::isStarted())
+    if(ros::isStarted()){
         ros::shutdown();
+        ros::waitForShutdown();
+    }
     wait();
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -62,7 +64,6 @@ void RegistraNuvem::init(){
         publicar_nuvens();
     }
 
-    ros::shutdown();
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_inicio_processo(bool inicio){
@@ -77,7 +78,7 @@ void RegistraNuvem::criaMatriz(){
 void RegistraNuvem::publicar_nuvens(){
     sensor_msgs::PointCloud2 src_temp_msg, tgt_msg, acumulada_msg;
     std::string frame = "map";
-//    if(true){
+
     if(processando && mutex_publicar){
         if(src_temp->size() > 0){
             toROSMsg(*src_temp, src_temp_msg);

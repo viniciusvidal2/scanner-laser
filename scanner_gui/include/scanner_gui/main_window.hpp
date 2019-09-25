@@ -33,6 +33,7 @@
 #include <csignal>
 #include <ctime>
 #include <thread>
+#include <QFutureWatcher>
 
 /*****************************************************************************
 ** Namespace
@@ -75,7 +76,9 @@ private Q_SLOTS:
         void on_lineEdit_minmotor_returnPressed();
         void on_lineEdit_maxmotor_returnPressed();
         void on_lineEdit_minlaser_returnPressed();
-        void on_lineEdit_maxlaser_returnPressed();
+        void on_lineEdit_maxlaser_returnPressed();        
+
+        void update_progressBar();
 
         /// ABA 2 ///
         void on_pushButton_nuvemalvo_clicked();
@@ -110,7 +113,6 @@ private:
 
         double laser_min, laser_max;
 
-        void update_progressBar(int start);
 };
 
 }  // namespace scanner_gui

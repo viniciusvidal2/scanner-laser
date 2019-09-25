@@ -38,7 +38,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     // Ajustes da ui
     setWindowIcon(QIcon(":/images/icon.png"));
     // Valores para o laser
-    laser_min = -M_PI/3; laser_max = M_PI/3;
+    laser_min = -70.0; laser_max = 89.0;
 
     /// --- ABA 1 --- ///
     // Ajuste dos Dials
@@ -52,10 +52,10 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.dial_maxmotor->setValue(max_motor);
     ui.dial_minlaser->setMinimum(-90);
     ui.dial_minlaser->setMaximum( 90);
-    ui.dial_minlaser->setValue(int(RAD2DEG(laser_min)));
+    ui.dial_minlaser->setValue(int(laser_min));
     ui.dial_maxlaser->setMinimum(-90);
     ui.dial_maxlaser->setMaximum( 90);
-    ui.dial_maxlaser->setValue(int(RAD2DEG(laser_max)));
+    ui.dial_maxlaser->setValue(int(laser_max));
     // Ajuste dos lineEdits
     ui.lineEdit_minmotor->setText(QString::number(ui.dial_minmotor->value()));
     ui.lineEdit_maxmotor->setText(QString::number(ui.dial_maxmotor->value()));
@@ -63,13 +63,18 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.lineEdit_maxlaser->setText(QString::number(ui.dial_maxlaser->value()));
     ui.lineEdit_viagens->setEnabled(false);
     ui.label_viagens->setEnabled(false);
-    // Ajuste dos pushButtons
-    ui.pushButton_aquisicao->setEnabled(false);
-    ui.pushButton_fimaquisicao->setEnabled(false);
+    // Ajuste dos pushButtons    
     ui.pushButton_inicio->setEnabled(false);
     ui.pushButton_visualizar->setEnabled(false);
     ui.pushButton_aquisicao->setStyleSheet("background-color: rgb(100, 250, 100); color: rgb(0, 0, 0)");
     ui.pushButton_fimaquisicao->setStyleSheet("background-color: rgb(70, 0, 0); color: rgb(250, 250, 250)");
+    ui.pushButton_aquisicao->setEnabled(false);
+    ui.pushButton_fimaquisicao->setEnabled(false);
+    // Ajuste da progressBar
+    ui.progressBar->setEnabled(false);
+
+    // Liga signal e slot para a progressBar
+    connect(&scan, SIGNAL(new_step()), this, SLOT(update_progressBar()));
 
     /// --- ABA 2 --- ///
     ui.checkBox_icp->setChecked(true); // Checkbox do icp começa a principio valendo
@@ -93,11 +98,6 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.dial_z->setMinimum(-180);
     ui.dial_z->setMaximum(180);
     ui.dial_z->setValue(0);
-
-    // Comeca a funcao que chama o preenchimento da barra de progresso
-    std::thread thread_obj(&MainWindow::update_progressBar, this, 1);
-    thread_obj.join();
-
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 MainWindow::~MainWindow() {}
@@ -105,25 +105,24 @@ MainWindow::~MainWindow() {}
 /// --------------------------------- ABA 1 ------------------------------------------- ///
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-void MainWindow::update_progressBar(int start){
-    ros::Rate r(1);
-    while(ros::ok()){
-        int viagem = scan.get_current_trip(), posicao = scan.get_current_position();
-        if(posicao != 0){
-            int limite_min, limite_max;
-            scan.get_limits(limite_min, limite_max);
+void MainWindow::update_progressBar(){
+    int viagem = scan.get_current_trip(), posicao = scan.get_current_position();
+    if(posicao != 0){
+        int limite_min, limite_max;
+        scan.get_limits(limite_min, limite_max);
 
-            int fatia = 100 / ui.lineEdit_viagens->text().toInt();
-            int valor = fatia*(viagem - 1);
-            if(int(remainder(viagem, 2)) == 1){
-                valor += int(double(fatia) * double(posicao - limite_min)/double(limite_max - limite_min));
-            } else {
-                valor += int(double(fatia) * double(limite_max - posicao)/double(limite_max - limite_min));
-            }
-            r.sleep();
-
-            ui.progressBar->setValue(valor);
+        int fatia = 100 / ui.lineEdit_viagens->text().toInt();
+        int valor = fatia*(viagem - 1);
+        if(abs(remainder(viagem, 2)) == 1){ // Indo para o fim de curso
+            valor += int(double(fatia) * double(posicao - limite_min)/double(limite_max - limite_min));
+        } else {                            // Voltando para o inicio de curso
+            valor += int(double(fatia) * double(limite_max - posicao)/double(limite_max - limite_min));
         }
+
+        if(valor > 100)
+            valor = 100;
+
+        ui.progressBar->setValue(valor);
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -167,7 +166,6 @@ void MainWindow::on_pushButton_inicio_clicked(){
     // Habilita o outro botao
     ui.pushButton_aquisicao->setEnabled(true);
     ui.pushButton_fimaquisicao->setEnabled(true);
-    ui.pushButton_visualizar->setEnabled(true);
     ui.lineEdit_viagens->setEnabled(true);
     ui.label_viagens->setEnabled(true);
 }
@@ -179,6 +177,9 @@ void MainWindow::on_pushButton_aquisicao_clicked(){
     scan.set_acquisition(true);
     // Comando para o fim de curso
     scan.start_course();
+
+    ui.pushButton_visualizar->setEnabled(true);
+    ui.progressBar->setEnabled(true);
 
     ROS_WARN("Comecamos a aquisitar, ligue o visualizador.");
 }
@@ -213,14 +214,14 @@ void MainWindow::on_dial_maxmotor_sliderReleased(){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::on_dial_minlaser_sliderReleased(){
     // Atualizar a variavel local dessa classe de limite de laser
-    laser_min = DEG2RAD(double(ui.dial_minlaser->value()));
+    laser_min = double(ui.dial_minlaser->value());
     // Ajusta o texto com o novo valor
     ui.lineEdit_minlaser->setText(QString::number(ui.dial_minlaser->value()));
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::on_dial_maxlaser_sliderReleased(){
     // Atualizar a variavel local dessa classe de limite de laser
-    laser_max = DEG2RAD(double(ui.dial_maxlaser->value()));
+    laser_max = double(ui.dial_maxlaser->value());
     // Ajusta o texto com o novo valor
     ui.lineEdit_maxlaser->setText(QString::number(ui.dial_maxlaser->value()));
 }
@@ -245,14 +246,14 @@ void MainWindow::on_lineEdit_minlaser_returnPressed(){
     // Seta o valor do dial
     ui.dial_minlaser->setValue(ui.lineEdit_minlaser->text().toInt());
     // Novo valor para a variavel local do laser
-    laser_min = DEG2RAD(ui.lineEdit_minlaser->text().toDouble());
+    laser_min = ui.lineEdit_minlaser->text().toDouble();
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::on_lineEdit_maxlaser_returnPressed(){
     // Seta o valor do dial
     ui.dial_maxlaser->setValue(ui.lineEdit_maxlaser->text().toInt());
     // Novo valor para a variavel local do laser
-    laser_max = DEG2RAD(ui.lineEdit_maxlaser->text().toDouble());
+    laser_max = ui.lineEdit_maxlaser->text().toDouble();
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -462,8 +463,6 @@ void MainWindow::on_pushButton_salvarfinal_clicked(){
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     // Terminar tudo no sistema para nao conflitar com a proxima abertura
-    system("gnome-terminal -x sh -c 'rosservice call /joint_command raw 2118 1900'"); // Posiciona o motor no minimo cuidadosamente ao desligar
-    sleep(3);
     system("gnome-terminal -x sh -c 'rosnode kill --all'");
     QMainWindow::closeEvent(event);
 }

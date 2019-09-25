@@ -216,6 +216,9 @@
             </item>
             <item>
              <widget class="QLineEdit" name="lineEdit_velocidadepan">
+              <property name="text">
+               <string>5</string>
+              </property>
               <property name="alignment">
                <set>Qt::AlignCenter</set>
               </property>
@@ -249,7 +252,7 @@
             <item>
              <widget class="QLineEdit" name="lineEdit_viagens">
               <property name="text">
-               <string>1</string>
+               <string>2</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignCenter</set>

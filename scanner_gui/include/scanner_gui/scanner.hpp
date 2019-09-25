@@ -82,12 +82,14 @@ public:
     void start_course();
     bool begin_reached(int &r);
     bool save_cloud();
-    void set_resolution(double deg);
     void set_trips(int t);
     int get_current_position();
     int get_current_trip();
 
     QMutex* mutex;
+
+Q_SIGNALS:
+    void new_step();
 
 private:
 
@@ -101,7 +103,6 @@ private:
     double raw2deg(double raw);
     Eigen::Matrix4f transformFromRaw(double raw);
     void callback(const sensor_msgs::LaserScanConstPtr& msg_laser, const nav_msgs::OdometryConstPtr& msg_motor);
-    void send_next_point(int end_point);
 
 
     /// Variaveis ///
@@ -109,7 +110,6 @@ private:
     char** init_argv;
 
     double raw_min, raw_max, deg_min, deg_max;
-    double raw_tilt_hor;
     double deg_raw, raw_deg;
     double raw_ref, deg_ref;
     double dentro;
@@ -118,8 +118,6 @@ private:
 
     // Controle do movimento do motor
     ros::ServiceClient comando_motor;
-    int intervalo;
-    int ponto_final_temp;
 
     int viagens, viagem_atual;
 

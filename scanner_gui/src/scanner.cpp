@@ -27,13 +27,13 @@ Scanner::Scanner(int argc, char **argv, QMutex *nmutex):init_argc(argc),
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 Scanner::~Scanner(){
-    dynamixel_workbench_msgs::JointCommand deitar;
-    deitar.request.pan_pos  = 0;
-    deitar.request.tilt_pos = 1965;
-    deitar.request.unit     = "raw";
-    if(comando_motor.call(deitar))
-        ROS_WARN("Deitando o robo...");
-    sleep(3);
+    dynamixel_workbench_msgs::JointCommand central;
+    central.request.pan_pos  = 60; // proximo do inicio do curso
+    central.request.tilt_pos = 0;
+    central.request.unit     = "raw";
+    if(comando_motor.call(central))
+        ROS_WARN("Centralizando o robo...");
+    sleep(5);
     if(ros::isStarted()){
         ros::shutdown();
         ros::waitForShutdown();
@@ -52,19 +52,15 @@ void Scanner::init(){
     ros::NodeHandle nh_;
 
     // Inicia variaveis do motor
-    raw_min = 152; raw_max = 3967;
-    deg_min =  13; deg_max =  348;
+    raw_min = 50; raw_max = 3988;
+    deg_min =  4; deg_max =  350;
     raw_atual = 0; // Seguranca
-    raw_tilt_hor = 2100;
     deg_raw = (deg_max - deg_min) / (raw_max - raw_min); raw_deg = 1.0 / deg_raw;
     dentro = 2;
     inicio_curso = raw_min; fim_curso = raw_max;
 
-    intervalo = 3; // Passo do motor para cada aquisicao
-    ponto_final_temp = inicio_curso; // A cada iteracao vai incrementar aqui para novo ponto final
-
     viagens = 1; // Comecando default valor de viagens total
-    viagem_atual = 1; // Qual viagem esta sendo realizada
+    viagem_atual = 0; // Qual viagem esta sendo realizada
 
     // Comecar a aquisicao
     comecar = false;
@@ -84,13 +80,11 @@ void Scanner::init(){
     sensor_msgs::PointCloud2 msg_acc;
     msg_acc.header.frame_id = "map";
 
-    ROS_INFO("Ligamos subscribers e publishers.");
-
     // Aqui o publicador de tf2 e inicio da mensage
     tf2_ros::TransformBroadcaster broadcaster;
     tf_msg.header.frame_id = "map";
     tf_msg.child_frame_id = "laser";
-    tf_msg.transform.translation.x = 0;
+    tf_msg.transform.translation.x = 0.0148;
     tf_msg.transform.translation.y = 0;
     tf_msg.transform.translation.z = 0;
     tf_msg.transform.rotation.x = 0;
@@ -100,7 +94,6 @@ void Scanner::init(){
 
     // Inicia o serviço - variavel global, para usar dentro do callback
     comando_motor = nh_.serviceClient<dynamixel_workbench_msgs::JointCommand>("/joint_command");
-
 
     // Rodar o no
     ros::Rate rate(2);
@@ -123,7 +116,6 @@ void Scanner::init(){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::set_course(double min, double max){
     inicio_curso = deg2raw(min); fim_curso = deg2raw(max);
-    ponto_final_temp = inicio_curso;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::set_trips(int t){
@@ -138,14 +130,8 @@ bool Scanner::get_acquisition(){
     return comecar;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Scanner::set_resolution(double deg){
-    intervalo = int(deg * (raw_max - raw_min)/(deg_max - deg_min));
-    if(intervalo <= dentro + 1)
-        intervalo = dentro + 2;
-}
-///////////////////////////////////////////////////////////////////////////////////////////
 bool Scanner::begin_reached(int &r){
-    if(abs(raw_atual - inicio_curso) > dentro){
+    if(abs(int(raw_atual - inicio_curso)) > dentro){
         r = int(raw2deg(raw_atual));
         comecar = false;
         return false;
@@ -188,6 +174,7 @@ bool Scanner::save_cloud(){
             acc_normal.points[i].normal_z = -acc_normal.points[i].normal_z;
         }
     }
+
     // Ver o tempo para diferenciar bags gravadas automaticamente
     time_t t = time(0);
     struct tm * now = localtime( & t );
@@ -211,7 +198,7 @@ bool Scanner::save_cloud(){
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::get_limits(int &minm, int &maxm){
-    minm = int(deg_min); maxm = int(deg_max);
+    minm = int(raw2deg(inicio_curso)); maxm = int(raw2deg(fim_curso));
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 int Scanner::get_current_position(){
@@ -233,7 +220,7 @@ double Scanner::raw2deg(double raw){
 void Scanner::send_begin_course(){
     dynamixel_workbench_msgs::JointCommand inicio_curso_cmd;
     inicio_curso_cmd.request.pan_pos  = inicio_curso;
-    inicio_curso_cmd.request.tilt_pos = raw_tilt_hor;
+    inicio_curso_cmd.request.tilt_pos = 0;
     inicio_curso_cmd.request.unit     = "raw";
     if(comando_motor.call(inicio_curso_cmd))
         ROS_INFO("Enviamos ao inicio de curso, aguarde....");
@@ -242,68 +229,63 @@ void Scanner::send_begin_course(){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::start_course(){
 //    dynamixel_workbench_msgs::JointCommand comecar_cmd;
-//    comecar_cmd.request.pan_pos  = ponto_final_temp + intervalo; // Primeiro ponta pe
-//    comecar_cmd.request.tilt_pos = raw_tilt_hor;
+//    comecar_cmd.request.pan_pos  = fim_curso; // Primeiro ponta pe
+//    comecar_cmd.request.tilt_pos = 0;
 //    comecar_cmd.request.unit     = "raw";
 //    if(comando_motor.call(comecar_cmd))
-        ROS_WARN("Mandamos comecar a aquisicao !");
+//        ROS_WARN("Mandamos comecar a aquisicao !");
     comecar = true; // Podemos aquisitar
-    viagem_atual = 1; // Garantir que estamos na primeira viagem ainda
+    viagem_atual = 0; // Garantir que estamos na primeira viagem ainda
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::send_to_opposite_edge(int t){
     dynamixel_workbench_msgs::JointCommand cmd;
-    if(int(remainder(t, 2)) == 1){ // Estamos indo ao fim de curso
-        cmd.request.pan_pos  = raw_max; // Primeiro ponta pe
-        cmd.request.tilt_pos = raw_tilt_hor;
+    if(abs(remainder(t, 2)) == 1){ // Estamos indo ao fim de curso
+        cmd.request.pan_pos  = fim_curso; // Primeiro ponta pe
+        cmd.request.tilt_pos = 0;
         cmd.request.unit     = "raw";
         if(comando_motor.call(cmd))
-            ROS_WARN("Mandamos para o fim de curso %d, viagem #%d !", raw_max, viagem_atual);
+            ROS_WARN("Mandamos para o fim de curso %d, viagem # %d !", int(fim_curso), viagem_atual);
     } else { // Estamos voltando ao inicio
-        cmd.request.pan_pos  = raw_min; // Primeiro ponta pe
-        cmd.request.tilt_pos = raw_tilt_hor;
+        cmd.request.pan_pos  = inicio_curso; // Primeiro ponta pe
+        cmd.request.tilt_pos = 0;
         cmd.request.unit     = "raw";
         if(comando_motor.call(cmd))
-            ROS_WARN("Mandamos para o inicio de curso %d, viagem #%d !", raw_min, viagem_atual);
+            ROS_WARN("Mandamos para o inicio de curso %d, viagem # %d !", int(inicio_curso), viagem_atual);
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Scanner::send_next_point(int end_point){
-    dynamixel_workbench_msgs::JointCommand avancar;
-    avancar.request.pan_pos  = end_point;
-    avancar.request.tilt_pos = raw_tilt_hor;
-    avancar.request.unit     = "raw";
-    if(comando_motor.call(avancar))
-        ROS_WARN("Mandamos para o ponto %d !", end_point);
-}
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f Scanner::transformFromRaw(double raw){
     // Valor em graus que girou, tirando a referencia, convertido para frame global ODOM:
     // theta_y = -degrees (contrario a mao direita)
     double theta_y = -raw2deg(raw - raw_ref);
-    // Prepara a mensagem atual de tf2 para ser transmitida e enviar
-    tf_msg.header.stamp = ros::Time::now();
-    tf_msg.header.frame_id = "map";
-    tf_msg.child_frame_id = "laser";
-    tf_msg.transform.translation.x = 0;
-    tf_msg.transform.translation.y = 0;
-    tf_msg.transform.translation.z = 0;
-    q.setRPY(0, DEG2RAD(theta_y), 0);
-    tf_msg.transform.rotation.x = q.x();
-    tf_msg.transform.rotation.y = q.y();
-    tf_msg.transform.rotation.z = q.z();
-    tf_msg.transform.rotation.w = q.w();
+
     // Constroi matriz de rotacao
     Eigen::Matrix3f R;
     R = Eigen::AngleAxisf(               0, Eigen::Vector3f::UnitX()) *
         Eigen::AngleAxisf(DEG2RAD(theta_y), Eigen::Vector3f::UnitY()) *
         Eigen::AngleAxisf(               0, Eigen::Vector3f::UnitZ());
     // Constroi matriz homgenea e retorna
-    Eigen::Vector3f t;
-    t << 0, 0, 0;
+    Eigen::MatrixXf t(3, 1);
+    t << 0.0148,
+              0,
+              0;
     Eigen::Matrix4f T;
-    T << R, t,
+    T << R, R*t,
          0, 0, 0, 1;
+
+    // Prepara a mensagem atual de tf2 para ser transmitida e enviar
+    tf_msg.header.stamp = ros::Time::now();
+    tf_msg.header.frame_id = "map";
+    tf_msg.child_frame_id = "laser";
+    tf_msg.transform.translation.x = T(0,3);
+    tf_msg.transform.translation.y = T(1,3);
+    tf_msg.transform.translation.z = T(2,3);
+    q.setRPY(0, DEG2RAD(theta_y), 0);
+    tf_msg.transform.rotation.x = q.x();
+    tf_msg.transform.rotation.y = q.y();
+    tf_msg.transform.rotation.z = q.z();
+    tf_msg.transform.rotation.w = q.w();
 
     return T;
 }
@@ -317,17 +299,26 @@ void Scanner::callback(const sensor_msgs::LaserScanConstPtr &msg_laser, const na
 
         // Controle para enviar comandos de acordo com a viagem
         if(viagem_atual <= viagens){
-            if(abs(raw_atual - raw_min) < dentro && int(remainder(viagem_atual, 2)) == 1){
-                send_to_opposite_edge(viagem_atual);
+            if(abs(int(raw_atual - inicio_curso)) < dentro && abs(remainder(viagem_atual, 2)) == 0){
                 viagem_atual++;
+                if(viagem_atual <= viagens)
+                    send_to_opposite_edge(viagem_atual);
             }
-            if(abs(raw_atual - raw_max) < dentro && int(remainder(viagem_atual, 2)) == 0){
-                send_to_opposite_edge(viagem_atual);
+            if(abs(int(raw_atual - fim_curso   )) < dentro && abs(remainder(viagem_atual, 2)) == 1){
                 viagem_atual++;
+                if(viagem_atual <= viagens)
+                    send_to_opposite_edge(viagem_atual);
+
             }
+        } else { // Finalizar processo se chegar ao fim do curso
+            ROS_INFO("Chegou ao fim da aquisicao, salvando nuvem na area de trabalho....");
+            this->save_cloud();
+            ROS_INFO("Nuvem salva, conferir la na boa.");
+            // Negando a flag novamente
+            comecar = false;
         }
 
-        ROS_INFO("Aquisitando ....");
+        ROS_INFO("Aquisitando, viagem %d ....", viagem_atual);
         // Começando, converter leitura para nuvem PCL
         sensor_msgs::PointCloud2 msg_cloud;
         projector.projectLaser(*msg_laser, msg_cloud);
@@ -338,20 +329,19 @@ void Scanner::callback(const sensor_msgs::LaserScanConstPtr &msg_laser, const na
         transformPointCloud(*cloud, *cloud, T);
         // Acumular nuvem
         *acc += *cloud;
-        // Setar novo ponto final da aquisicao
-        ponto_final_temp += intervalo;
-        send_next_point(ponto_final_temp);
+        // Falar o ponto atual para a progressBar
+        new_step();
 
-        // Finalizar processo se chegar ao fim do curso
-        if(viagem_atual > viagens){
-            ROS_INFO("Chegou no fim de curso, salvando nuvem na area de trabalho....");
-            this->save_cloud();
-            ROS_INFO("Nuvem salva, conferir la na boa.");
-            // Negando a flag novamente
-            comecar = false;
-            // Resetando o ponto final
-            ponto_final_temp = inicio_curso;
-        }// fim if fim de curso
+//        // Finalizar processo se chegar ao fim do curso
+//        if(viagem_atual > viagens){
+//            ROS_INFO("Chegou ao fim da aquisicao, salvando nuvem na area de trabalho....");
+//            this->save_cloud();
+//            ROS_INFO("Nuvem salva, conferir la na boa.");
+//            // Negando a flag novamente
+//            comecar = false;
+//            // Resetando o ponto final
+//            ponto_final_temp = inicio_curso;
+//        }// fim if fim de curso
 
     }
 }
