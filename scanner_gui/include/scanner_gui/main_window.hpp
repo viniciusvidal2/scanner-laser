@@ -80,6 +80,8 @@ private Q_SLOTS:
 
         void update_progressBar();
 
+        void on_checkBox_intensidades_stateChanged(int v);
+
         /// ABA 2 ///
         void on_pushButton_nuvemalvo_clicked();
         void on_pushButton_nuvemfonte_clicked();
@@ -104,6 +106,15 @@ private Q_SLOTS:
 
         void on_pushButton_registrar_clicked();
         void on_pushButton_salvarfinal_clicked();
+
+        /// ABA3 ///
+        void on_pushButton_nuvemacorrigir_clicked();
+        void on_pushButton_visualizarcorrecao_clicked();
+        void on_pushButton_voxel_clicked();
+        void on_pushButton_outliers_clicked();
+        void on_pushButton_salvarnuvemfiltrada_clicked();
+        void on_pushButton_resetafiltro_clicked();
+        void on_pushButton_filtropolinomio_clicked();
 
 private:
 	Ui::MainWindowDesign ui;

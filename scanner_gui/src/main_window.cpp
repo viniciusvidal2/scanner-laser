@@ -38,7 +38,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     // Ajustes da ui
     setWindowIcon(QIcon(":/images/icon.png"));
     // Valores para o laser
-    laser_min = -70.0; laser_max = 89.0;
+    laser_min = -65.0; laser_max = 90.0;
 
     /// --- ABA 1 --- ///
     // Ajuste dos Dials
@@ -98,6 +98,13 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.dial_z->setMinimum(-180);
     ui.dial_z->setMaximum(180);
     ui.dial_z->setValue(0);
+
+    /// --- ABA 3 --- ///
+    // Desabilitando componentes da aba 3
+    ui.groupBox_filtrosforma->setEnabled(false);
+    ui.frame_salvar->setEnabled(false);
+    ui.pushButton_resetafiltro->setEnabled(false);
+    ui.groupBox_polinomio->setEnabled(false);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 MainWindow::~MainWindow() {}
@@ -119,11 +126,38 @@ void MainWindow::update_progressBar(){
             valor += int(double(fatia) * double(limite_max - posicao)/double(limite_max - limite_min));
         }
 
-        if(valor > 100)
+        if(valor > 100 || viagem > ui.lineEdit_viagens->text().toInt())
             valor = 100;
 
         ui.progressBar->setValue(valor);
     }
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void MainWindow::on_checkBox_intensidades_stateChanged(int v){
+    if(ui.checkBox_intensidades->isChecked()){
+        laser_min = -55; laser_max = 55;
+        ui.dial_minlaser->setMinimum(-60);
+        ui.dial_minlaser->setMaximum( 60);
+        ui.dial_minlaser->setValue(int(laser_min));
+        ui.dial_maxlaser->setMinimum(-60);
+        ui.dial_maxlaser->setMaximum( 60);
+        ui.dial_maxlaser->setValue(int(laser_max));
+
+    } else {
+
+        laser_min = -90; laser_max = 90;
+        ui.dial_minlaser->setMinimum(-90);
+        ui.dial_minlaser->setMaximum( 90);
+        ui.dial_minlaser->setValue(int(laser_min));
+        ui.dial_maxlaser->setMinimum(-90);
+        ui.dial_maxlaser->setMaximum( 90);
+        ui.dial_maxlaser->setValue(int(laser_max));
+    }
+
+    ui.lineEdit_minmotor->setText(QString::number(ui.dial_minmotor->value()));
+    ui.lineEdit_maxmotor->setText(QString::number(ui.dial_maxmotor->value()));
+    ui.lineEdit_minlaser->setText(QString::number(ui.dial_minlaser->value()));
+    ui.lineEdit_maxlaser->setText(QString::number(ui.dial_maxlaser->value()));
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// PUSHBUTTONS ///////////////////////////////////////////
@@ -459,6 +493,60 @@ void MainWindow::on_pushButton_salvarfinal_clicked(){
     rn.salvar_dados_finais(ui.lineEdit_pastafinal->text());
 }
 
+/// --------------------------------- ABA 3 ------------------------------------------- ///
+
+/// Botao para carregar arquivo da nuvem que sera filtrada
+void MainWindow::on_pushButton_nuvemacorrigir_clicked(){
+    QString nome_alvo;
+    nome_alvo = QFileDialog::getOpenFileName(this, "Nuvem a Filtrar", "", "PLY Files (*.ply)");
+    ui.lineEdit_nuvemparafiltrar->setText(nome_alvo);
+
+    rn.set_nuvem_filtrar(nome_alvo);
+    // Habilitar o resto da aba
+    ui.groupBox_filtrosforma->setEnabled(true);
+    ui.frame_salvar->setEnabled(true);
+    ui.pushButton_resetafiltro->setEnabled(true);
+    ui.groupBox_polinomio->setEnabled(true);
+}
+
+/// Botao para visulizar enquanto a filtragem ocorre
+void MainWindow::on_pushButton_visualizarcorrecao_clicked(){
+    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/laser_ws/src/scanner-laser/scanner_gui/resources/filtrando.rviz'");
+}
+
+/// Botao para aplicar o filtro de voxel
+void MainWindow::on_pushButton_voxel_clicked(){
+    float voxel = ui.lineEdit_voxel->text().toFloat(); // aqui em centimetros, tem que mandar em metros
+    ROS_INFO("Tamanho do voxel: %.4f cm", voxel);
+    if(voxel != 0)
+        rn.set_new_voxel(voxel/100.0);
+}
+
+/// Botao para aplicar filtros de outliers
+void MainWindow::on_pushButton_outliers_clicked(){
+    float mean = ui.lineEdit_outliersmean->text().toFloat();
+    float dev  = ui.lineEdit_outliersstd->text().toFloat();
+    ROS_INFO("Media: %.4f    Desvio: %.4f", mean, dev);
+    if(mean != 0 && dev != 0)
+        rn.set_new_outlier(mean, dev);
+}
+
+/// Botao para salvar a nuvem final na mesma pasta que a original
+void MainWindow::on_pushButton_salvarnuvemfiltrada_clicked(){
+    rn.salvar_nuvem_filtrada(ui.lineEdit_nuvemfiltradasalvar->text());
+}
+
+// Resetar os filtros aplicados
+void MainWindow::on_pushButton_resetafiltro_clicked(){
+    rn.reseta_filtros();
+}
+
+// Aplicar suavizacao polinomial na nuvem
+void MainWindow::on_pushButton_filtropolinomio_clicked(){
+  rn.aplica_filtro_polinomio(ui.lineEdit_graupolinomio->text().toInt(), ui.lineEdit_raiopolinomio->text().toFloat());
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::closeEvent(QCloseEvent *event)
 {

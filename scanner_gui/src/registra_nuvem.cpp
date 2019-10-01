@@ -44,6 +44,9 @@ void RegistraNuvem::init(){
     src_temp  = (PointCloud<PointT>::Ptr) new PointCloud<PointT>();
     tgt       = (PointCloud<PointT>::Ptr) new PointCloud<PointT>();
     acumulada = (PointCloud<PointT>::Ptr) new PointCloud<PointT>();
+    nuvem_filtrar      = (PointCloud<PointF>::Ptr) new PointCloud<PointF>();
+    nuvem_filtrar_temp = (PointCloud<PointF>::Ptr) new PointCloud<PointF>();
+
 
     // Inicia a transformaçao
     T_fim = Eigen::Matrix4f::Identity();
@@ -54,9 +57,13 @@ void RegistraNuvem::init(){
     pub_srctemp   = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_fonte_temp"    , 1);
     pub_tgt       = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_alvo_temp"     , 1);
     pub_acumulada = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_acumulada_temp", 1);
+    pub_filtrada  = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_filtrada"      , 1);
 
     // Mutex de publicacao
     mutex_publicar = true;
+
+    // Estamos na aba3?
+    aba3 = false;
 
     ros::Rate rate(0.5);
     while(ros::ok()){
@@ -79,7 +86,7 @@ void RegistraNuvem::publicar_nuvens(){
     sensor_msgs::PointCloud2 src_temp_msg, tgt_msg, acumulada_msg;
     std::string frame = "map";
 
-    if(processando && mutex_publicar){
+    if(processando && mutex_publicar && !aba3){
         if(src_temp->size() > 0){
             toROSMsg(*src_temp, src_temp_msg);
             src_temp_msg.header.frame_id = frame;
@@ -94,6 +101,15 @@ void RegistraNuvem::publicar_nuvens(){
             toROSMsg(*acumulada, acumulada_msg);
             acumulada_msg.header.frame_id = frame;
             pub_acumulada.publish(acumulada_msg);
+        }
+    }
+    // Aqui quando publicando na terceira aba de filtragem somente
+    if(mutex_publicar && aba3){
+        if(nuvem_filtrar_temp->size() > 0){
+            sensor_msgs::PointCloud2 filtrada_msg;
+            toROSMsg(*nuvem_filtrar_temp, filtrada_msg);
+            filtrada_msg.header.frame_id = frame;
+            pub_filtrada.publish(filtrada_msg);
         }
     }
 }
@@ -208,6 +224,13 @@ void RegistraNuvem::filter_grid(PointCloud<PointT>::Ptr in, PointCloud<PointT>::
     grid.filter(*out);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::filter_grid(PointCloud<PointF>::Ptr in, PointCloud<PointF>::Ptr out, float leaf_size){
+    VoxelGrid<PointF> grid;
+    grid.setLeafSize(leaf_size, leaf_size, leaf_size);
+    grid.setInputCloud(in);
+    grid.filter(*out);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::get_TFinal(float &x, float &y, float &z, float &rx, float &ry, float &rz){
     x = 100*T_fim(0, 3); y = 100*T_fim(1, 3); z = 100*T_fim(2, 3); // em centimetros aqui
 
@@ -305,8 +328,21 @@ Eigen::Vector3f RegistraNuvem::calcula_centroide(PointCloud<PointT>::Ptr cloud){
     return centroide;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void RegistraNuvem::remove_outlier(PointCloud<PointT>::Ptr in, PointCloud<PointT>::Ptr out, float mean, float deviation){
-  StatisticalOutlierRemoval<PointT> sor;
+Eigen::Vector3f RegistraNuvem::calcula_centroide(PointCloud<PointF>::Ptr cloud){
+    float x = 0, y = 0, z = 0;
+    for(unsigned long i=0; i < cloud->size(); i++){
+        x = x + cloud->points[i].x;
+        y = y + cloud->points[i].y;
+        z = z + cloud->points[i].z;
+    }
+    Eigen::Vector3f centroide;
+    centroide << x/(float)cloud->size(), y/(float)cloud->size(), z/(float)cloud->size();
+    // Retorna centro medio dos pontos da nuvem, na transformacao deve ser passado negativo
+    return centroide;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::remove_outlier(PointCloud<PointF>::Ptr in, PointCloud<PointF>::Ptr out, float mean, float deviation){
+  StatisticalOutlierRemoval<PointF> sor;
   sor.setInputCloud(in);
   sor.setMeanK(mean);
   sor.setStddevMulThresh(deviation);
@@ -315,6 +351,108 @@ void RegistraNuvem::remove_outlier(PointCloud<PointT>::Ptr in, PointCloud<PointT
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_profundidade_icp(double p){
     profundidade_icp = p;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::set_nuvem_filtrar(QString n){
+    aba3 = true; // Vai funcionar e publicar as coisas dessa aba
+
+    loadPLYFile(n.toStdString(), *nuvem_filtrar);
+    // Recolher aqui tambem so o nome da pasta pra fazer o arquivo final depois
+    for(int i=n.length(); i>0; i--){
+      if (n[i] == '/'){
+        pasta_filtrada = n.left(i).toStdString();
+        break;
+      }
+    }
+    *nuvem_filtrar_temp = *nuvem_filtrar;
+    Eigen::Vector3f centroide;
+    centroide = this->calcula_centroide(nuvem_filtrar_temp);
+    transformPointCloud(*nuvem_filtrar_temp, *nuvem_filtrar_temp, -centroide, Eigen::Quaternion<float>::Identity());
+    color_cloud_depth();
+    ROS_INFO("Nuvem filtrada carregada.");
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::set_new_voxel(float v){
+    mutex_publicar = false;
+    filter_grid(nuvem_filtrar_temp, nuvem_filtrar_temp, v);
+    mutex_publicar = true;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::set_new_outlier(float k, float stddev){
+    mutex_publicar = false;
+    remove_outlier(nuvem_filtrar_temp, nuvem_filtrar_temp, k, stddev);
+    mutex_publicar = true;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::salvar_nuvem_filtrada(QString nome){
+    std::string caminho = pasta_filtrada+"/"+nome.toStdString()+".ply";
+    ROS_INFO("Salvando nuvem filtrada como %s...", caminho.c_str());
+    color_cloud_depth();
+    savePLYFileASCII(caminho, *nuvem_filtrar_temp);
+    ROS_INFO("Nuvem filtrada salva.");
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::reseta_filtros(){
+    *nuvem_filtrar_temp = *nuvem_filtrar;
+    color_cloud_depth();
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::aplica_filtro_polinomio(int grau, float raio){
+  mutex_publicar = false;
+
+  PointCloud<PointXYZ>::Ptr temp (new PointCloud<PointXYZ>());
+  PointCloud<PointF> tempnormal;
+  PointXYZ point;
+
+  #pragma omp parallel for num_threads(10)
+  for(unsigned long i=0; i<nuvem_filtrar_temp->size(); i++){
+    point.x = nuvem_filtrar_temp->points[i].x;
+    point.y = nuvem_filtrar_temp->points[i].y;
+    point.z = nuvem_filtrar_temp->points[i].z;
+    temp->push_back(point);
+  }
+  ROS_INFO("Começando a suavizar a nuvem...");
+  pcl::search::KdTree<PointXYZ>::Ptr tree (new pcl::search::KdTree<PointXYZ>());
+  MovingLeastSquares<PointXYZ, PointF> mls;
+  mls.setSearchRadius(raio);
+  mls.setComputeNormals(true);
+  mls.setSearchMethod(tree);
+  mls.setPolynomialOrder(grau);
+  mls.setInputCloud(temp);
+  mls.process(tempnormal);
+
+  color_cloud_depth();
+  ROS_INFO("Nuvem suavizada!");
+
+  *nuvem_filtrar_temp = tempnormal;
+
+  mutex_publicar = true;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::color_cloud_depth(){
+    mutex_publicar = false;
+//    ROS_INFO("Colorindo a nuvem %zu...", nuvem_filtrar_temp->size());
+    // Varre nuvem atras da maior e menor distancia
+    float mindist = 1000, maxdist = 0, dist;
+    for(unsigned long i=0; i < nuvem_filtrar_temp->size(); i++){
+        dist = sqrt( nuvem_filtrar_temp->points[i].x*nuvem_filtrar_temp->points[i].x + nuvem_filtrar_temp->points[i].y*nuvem_filtrar_temp->points[i].y + nuvem_filtrar_temp->points[i].z*nuvem_filtrar_temp->points[i].z);
+        if(dist > maxdist)
+            maxdist = dist;
+        if(dist < mindist)
+            mindist = dist;
+    }
+
+    // Calcula distancias de cada ponto, regra sobre a distancia e atribui cor
+    #pragma omp parallel for num_threads(10)
+    for(unsigned long i=0; i < nuvem_filtrar_temp->size(); i++){
+        dist = sqrt( nuvem_filtrar_temp->points[i].x*nuvem_filtrar_temp->points[i].x + nuvem_filtrar_temp->points[i].y*nuvem_filtrar_temp->points[i].y + nuvem_filtrar_temp->points[i].z*nuvem_filtrar_temp->points[i].z);
+        nuvem_filtrar_temp->points[i].r = ((250 - 250*(dist - mindist)/(maxdist - mindist)) > 0) ? (250 - 250*(dist - mindist)/(maxdist - mindist)) : 0;
+        nuvem_filtrar_temp->points[i].g = ((250*(dist - mindist)/(maxdist - mindist)) < 255) ? (250*(dist - mindist)/(maxdist - mindist)) : 250;
+        nuvem_filtrar_temp->points[i].b = ((250*(dist - mindist)/(maxdist - mindist)) < 255) ? (250*(dist - mindist)/(maxdist - mindist)) : 250;
+//        ROS_INFO("Cores: %d %d %d", nuvem_filtrar_temp->points[i].r, nuvem_filtrar_temp->points[i].g, nuvem_filtrar_temp->points[i].b);
+    }
+
+    mutex_publicar = true;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 } // fim do namespace scanner_gui
