@@ -431,9 +431,10 @@ void RegistraNuvem::aplica_filtro_polinomio(int grau, float raio){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::color_cloud_depth(){
     mutex_publicar = false;
-//    ROS_INFO("Colorindo a nuvem %zu...", nuvem_filtrar_temp->size());
     // Varre nuvem atras da maior e menor distancia
-    float mindist = 1000, maxdist = 0, dist;
+    float mindist = 1000, maxdist = 0, dist, scale, dev = 300;
+    float r, g, b;
+    float alpha = 250.0 / normaldist(0, 0, dev);
     for(unsigned long i=0; i < nuvem_filtrar_temp->size(); i++){
         dist = sqrt( nuvem_filtrar_temp->points[i].x*nuvem_filtrar_temp->points[i].x + nuvem_filtrar_temp->points[i].y*nuvem_filtrar_temp->points[i].y + nuvem_filtrar_temp->points[i].z*nuvem_filtrar_temp->points[i].z);
         if(dist > maxdist)
@@ -446,13 +447,20 @@ void RegistraNuvem::color_cloud_depth(){
     #pragma omp parallel for num_threads(10)
     for(unsigned long i=0; i < nuvem_filtrar_temp->size(); i++){
         dist = sqrt( nuvem_filtrar_temp->points[i].x*nuvem_filtrar_temp->points[i].x + nuvem_filtrar_temp->points[i].y*nuvem_filtrar_temp->points[i].y + nuvem_filtrar_temp->points[i].z*nuvem_filtrar_temp->points[i].z);
-        nuvem_filtrar_temp->points[i].r = ((250 - 250*(dist - mindist)/(maxdist - mindist)) > 0) ? (250 - 250*(dist - mindist)/(maxdist - mindist)) : 0;
-        nuvem_filtrar_temp->points[i].g = ((250*(dist - mindist)/(maxdist - mindist)) < 255) ? (250*(dist - mindist)/(maxdist - mindist)) : 250;
-        nuvem_filtrar_temp->points[i].b = ((250*(dist - mindist)/(maxdist - mindist)) < 255) ? (250*(dist - mindist)/(maxdist - mindist)) : 250;
-//        ROS_INFO("Cores: %d %d %d", nuvem_filtrar_temp->points[i].r, nuvem_filtrar_temp->points[i].g, nuvem_filtrar_temp->points[i].b);
+        scale = 750 * (dist - mindist)/(maxdist - mindist);
+        // Pegar a cor como funcao normal
+        r = alpha*normaldist(scale, 0, dev); g = alpha*normaldist(scale, 390, dev); b = alpha*normaldist(scale, 750, dev);
+
+        nuvem_filtrar_temp->points[i].r = r;
+        nuvem_filtrar_temp->points[i].g = g;
+        nuvem_filtrar_temp->points[i].b = b;
     }
 
     mutex_publicar = true;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+float RegistraNuvem::normaldist(float x, float media, float dev){
+    return exp( -0.5*((x - media)/dev)*((x - media)/dev) ) / sqrt( 2*M_PI*dev*dev );
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 } // fim do namespace scanner_gui

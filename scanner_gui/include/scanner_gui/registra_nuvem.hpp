@@ -163,6 +163,7 @@ private:
     Eigen::Vector3f calcula_centroide(PointCloud<PointF>::Ptr cloud);
     void remove_outlier(PointCloud<PointF>::Ptr in, PointCloud<PointF>::Ptr out, float mean, float deviation);
     void color_cloud_depth();
+    float normaldist(float x, float media, float dev);
 
 };
 
