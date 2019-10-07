@@ -67,6 +67,8 @@
 #include <Eigen/Dense>
 #include <Eigen/Core>
 
+#include "projetalaser.hpp"
+
 namespace scanner_gui{
 
 using namespace pcl;
@@ -152,6 +154,9 @@ private:
     std::string pasta_filtrada;
     std::string nome_nuvem_filtrada;
     bool aba3;
+
+    // Projetar o laser ao final
+    ProjetaLaser* pl;
 
     /// Metodos ///
     void criaMatriz();

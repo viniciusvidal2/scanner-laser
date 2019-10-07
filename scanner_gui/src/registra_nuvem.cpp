@@ -1,4 +1,5 @@
 #include "../include/scanner_gui/registra_nuvem.hpp"
+//#include "../include/scanner_gui/projetalaser.hpp"
 #include <QTime>
 #include <iostream>
 #include <std_msgs/String.h>
