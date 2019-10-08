@@ -34,9 +34,6 @@
 #include <pcl/registration/correspondence_rejection_median_distance.h>
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
 
-#include <tf/tf.h>
-#include <tf/transform_listener.h>
-#include <tf_conversions/tf_eigen.h>
 #include <ctime>
 
 #include <string>

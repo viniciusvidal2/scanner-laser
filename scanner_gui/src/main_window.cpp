@@ -46,16 +46,16 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     scan.get_limits(min_motor, max_motor);
     ui.dial_minmotor->setMinimum(min_motor);
     ui.dial_minmotor->setMaximum(max_motor);
-    ui.dial_minmotor->setValue(min_motor);
+    ui.dial_minmotor->setValue(150);
     ui.dial_maxmotor->setMinimum(min_motor);
     ui.dial_maxmotor->setMaximum(max_motor);
-    ui.dial_maxmotor->setValue(max_motor);
+    ui.dial_maxmotor->setValue(210);
     ui.dial_minlaser->setMinimum(-90);
     ui.dial_minlaser->setMaximum( 90);
-    ui.dial_minlaser->setValue(int(laser_min));
+    ui.dial_minlaser->setValue(int(-25));
     ui.dial_maxlaser->setMinimum(-90);
     ui.dial_maxlaser->setMaximum( 90);
-    ui.dial_maxlaser->setValue(int(laser_max));
+    ui.dial_maxlaser->setValue(int(25));
     // Ajuste dos lineEdits
     ui.lineEdit_minmotor->setText(QString::number(ui.dial_minmotor->value()));
     ui.lineEdit_maxmotor->setText(QString::number(ui.dial_maxmotor->value()));

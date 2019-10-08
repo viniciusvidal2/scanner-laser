@@ -1,5 +1,4 @@
 #include "../include/scanner_gui/registra_nuvem.hpp"
-//#include "../include/scanner_gui/projetalaser.hpp"
 #include <QTime>
 #include <iostream>
 #include <std_msgs/String.h>
@@ -28,6 +27,7 @@ RegistraNuvem::~RegistraNuvem(){
         ros::shutdown();
         ros::waitForShutdown();
     }
+    delete pl;
     wait();
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -48,7 +48,6 @@ void RegistraNuvem::init(){
     nuvem_filtrar      = (PointCloud<PointF>::Ptr) new PointCloud<PointF>();
     nuvem_filtrar_temp = (PointCloud<PointF>::Ptr) new PointCloud<PointF>();
 
-
     // Inicia a transformaçao
     T_fim = Eigen::Matrix4f::Identity();
     R_fim = Eigen::Matrix3f::Identity();
@@ -65,6 +64,10 @@ void RegistraNuvem::init(){
 
     // Estamos na aba3?
     aba3 = false;
+
+    // Classe para projetar nuvem na camera virtual -> teste
+    pl = new ProjetaLaser(init_argc, init_argv);
+    pl->set_angulos(0, 30);
 
     ros::Rate rate(0.5);
     while(ros::ok()){
@@ -366,11 +369,19 @@ void RegistraNuvem::set_nuvem_filtrar(QString n){
       }
     }
     *nuvem_filtrar_temp = *nuvem_filtrar;
+
+    color_cloud_depth();
+
+    // Projetando dentro da camera virtual do laser aqui
+    pl->set_angulos(150, 210);
+    pl->set_nuvem(nuvem_filtrar_temp);
+    pl->process();
+
     Eigen::Vector3f centroide;
     centroide = this->calcula_centroide(nuvem_filtrar_temp);
     transformPointCloud(*nuvem_filtrar_temp, *nuvem_filtrar_temp, -centroide, Eigen::Quaternion<float>::Identity());
-    color_cloud_depth();
-    ROS_INFO("Nuvem filtrada carregada.");
+
+    ROS_INFO("Nuvem filtrada carregada.");    
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_new_voxel(float v){
