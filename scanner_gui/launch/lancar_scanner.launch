@@ -4,8 +4,12 @@
 <arg name="laser_max" default="0.785"/>
 <arg name="capt_intensidade" default="false"/> <!--capturar as intensidades da leitura do laser-->
 <arg name="set_pan_moving_speed" default="10"/>
+<arg name="online" default="true"/>
 
-<!--Lancando os motores de ca-->
+<!-- Lancando entao aqui tudo, se estivermos online, todos os drivers de aquisicao -->
+<group if="$(arg online)">
+
+<!-- Lancando os motores de ca -->
 <include file="$(find dynamixel_workbench_controllers)/launch/multi_port.launch">
     <arg name="pan_moving_speed" value="$(arg set_pan_moving_speed)"/>
 </include>
@@ -20,5 +24,19 @@
 <param name="min_ang" type="double" value="$(arg laser_min)"/>
 <param name="max_ang" type="double" value="$(arg laser_max)"/>
 </node>
+
+<!-- Lancando a camera ASTRA e o no de calibracao -->
+<include file="$(find astra_launch)/launch/astra.launch">
+    <param name="color_depth_synchronization" value="true"/>
+</include>
+<node name="astra_calibrada_node" pkg="astra_calibrada" type="astra_calibrada" output="screen">
+    <param name="resolucao" value="1"/>
+</node>
+
+<!-- Lancar camera ZED -->
+<include file="$(find zed_wrapper)/launch/zed.launch">
+</include>
+
+</group>
 
 </launch>

@@ -86,6 +86,7 @@ public:
     bool begin_reached(int &r);
     bool save_cloud();
     void set_trips(int t);
+    void set_overlap(float o);
     int get_current_position();
     int get_current_trip();
 
@@ -118,6 +119,14 @@ private:
     double dentro;
     double inicio_curso, fim_curso; // em unidades RAW
     double raw_atual;
+
+    double FOV_astra;
+    float  overlap; // [DEGREES]
+
+    // Vetores de controle de angulos de aquisicao de imagens e nuvens
+    vector<float> angulos_captura;
+    vector<float> final_nuvens;    // [DEGREES]
+    vector<float> inicio_nuvens;
 
     // Controle do movimento do motor
     ros::ServiceClient comando_motor;

@@ -51,13 +51,17 @@ void Scanner::init(){
     ros::start();
     ros::NodeHandle nh_;
 
+    // FOV da ASTRA segundo fabricante no sentido PAN
+    FOV_astra = 60;
+
     // Inicia variaveis do motor
     raw_min = 50; raw_max = 3988;
     deg_min =  4; deg_max =  350;
     raw_atual = 0; // Seguranca
     deg_raw = (deg_max - deg_min) / (raw_max - raw_min); raw_deg = 1.0 / deg_raw;
     dentro = 2;
-    inicio_curso = raw_min; fim_curso = raw_max;
+//    inicio_curso = raw_min; fim_curso = raw_max;
+    this->set_course(deg_min, deg_max);
 
     viagens = 1; // Comecando default valor de viagens total
     viagem_atual = 0; // Qual viagem esta sendo realizada
@@ -80,7 +84,7 @@ void Scanner::init(){
     sensor_msgs::PointCloud2 msg_acc;
     msg_acc.header.frame_id = "map";
 
-    // Aqui o publicador de tf2 e inicio da mensage
+    // Aqui o publicador de tf2 e inicio da mensagem
     tf2_ros::TransformBroadcaster broadcaster;
     tf_msg.header.frame_id = "map";
     tf_msg.child_frame_id = "laser";
@@ -116,6 +120,30 @@ void Scanner::init(){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::set_course(double min, double max){
     inicio_curso = deg2raw(min); fim_curso = deg2raw(max);
+
+    /// Preencher os vetores conforme angulos de captura, inicio e fim das nuvens
+    angulos_captura.clear(); inicio_nuvens.clear(); final_nuvens.clear();
+
+    if(max - min <= FOV_astra - overlap){ // Se so cabe uma captura por causa do range pequeno
+        angulos_captura.push_back((min + max)/2);
+        inicio_nuvens.push_back(min);
+        final_nuvens.push_back(max);
+    } else { // Calcular o espaçamento entre as capturas
+        float ac = min + FOV_astra/2; // - overlap;
+        float in = min, fn = min + FOV_astra - overlap;
+        angulos_captura.push_back(ac); inicio_nuvens.push_back(in); final_nuvens.push_back(fn);
+
+        while(ac < max){ // Equanto nao varremos todo o range com o angulo central de captura
+            ac += FOV_astra - overlap;
+            in  = (ac - FOV_astra/2 < min) ? min : ac - FOV_astra/2;
+            in  = (ac + FOV_astra/2 > max) ? max : ac + FOV_astra/2;
+            angulos_captura.push_back(ac); inicio_nuvens.push_back(in); final_nuvens.push_back(fn);
+        }
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Scanner::set_overlap(float o_pct){
+    overlap = FOV_astra * o_pct/100;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::set_trips(int t){
@@ -330,7 +358,6 @@ void Scanner::callback(const sensor_msgs::LaserScanConstPtr &msg_laser, const na
             comecar = false;
         }
 
-//        ROS_INFO("Aquisitando, viagem %d ....", viagem_atual);
         // Começando, converter leitura para nuvem PCL
         sensor_msgs::PointCloud2 msg_cloud;
         projector.projectLaser(*msg_laser, msg_cloud);
