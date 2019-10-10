@@ -50,7 +50,7 @@
 
 // Dynamic Reconfigure
 #include <dynamic_reconfigure/server.h>
-#include <astra_calibrada/calib_params_Config.h>
+//#include <astra_calibrada/calib_params_Config.h>
 
 // Otimizacao paralelo
 

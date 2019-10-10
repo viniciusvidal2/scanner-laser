@@ -14,7 +14,17 @@
 #include <laser_geometry/laser_geometry.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/Image.h>
 #include <nav_msgs/Odometry.h>
+
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/videoio.hpp"
+#include <opencv2/features2d.hpp>
+#include <opencv2/xfeatures2d.hpp>
+#include <opencv2/calib3d.hpp>
 
 #include <dynamixel_workbench_msgs/DynamixelCommand.h>
 #include <dynamixel_workbench_msgs/DynamixelInfo.h>
@@ -97,17 +107,29 @@ Q_SIGNALS:
 
 private:
 
+    // Ouve laser e motores, acumula nuvem
     typedef sync_policies::ApproximateTime<sensor_msgs::LaserScan, nav_msgs::Odometry> syncPolicy;
     typedef Synchronizer<syncPolicy> Sync;
     boost::shared_ptr<Sync> sync;
     message_filters::Connection conexao_filter;
 
+    // Ouve motores e astra para capturar imagem e nuvens posicionadas
+    typedef sync_policies::ApproximateTime<nav_msgs::Odometry, sensor_msgs::Image, sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> syncPolicy2;
+    typedef Synchronizer<syncPolicy2> Sync2;
+    boost::shared_ptr<Sync2> sync2;
+    message_filters::Connection conexao_filter2;
+
     /// Funcoes ///
     double deg2raw(double deg);
     double raw2deg(double raw);
     Eigen::Matrix4f transformFromRaw(double raw);
-    void callback(const sensor_msgs::LaserScanConstPtr& msg_laser, const nav_msgs::OdometryConstPtr& msg_motor);
-
+    void accumulate_parcial_cloud(PointCloud<PointXYZ>::Ptr cloud, double ang_raw);
+    void callback(const sensor_msgs::LaserScanConstPtr& msg_laser,
+                  const nav_msgs::OdometryConstPtr& msg_motor);
+    void callback2(const nav_msgs::OdometryConstPtr& msg_motor,
+                   const sensor_msgs::ImageConstPtr& msg_imagem,
+                   const sensor_msgs::PointCloud2ConstPtr& msg_nuvem,
+                   const sensor_msgs::PointCloud2ConstPtr& msg_pixels);
 
     /// Variaveis ///
     int init_argc;
@@ -127,6 +149,8 @@ private:
     vector<float> angulos_captura;
     vector<float> final_nuvens;    // [DEGREES]
     vector<float> inicio_nuvens;
+    vector<PointCloud<PointXYZ>> nuvens_parciais;
+    vector<cv::Mat> imagens_parciais;
 
     // Controle do movimento do motor
     ros::ServiceClient comando_motor;
@@ -135,11 +159,15 @@ private:
 
     bool comecar;
 
+    // Controle de captura de dados da camera
+    int capturar_camera;
+
     // Variaveis para leitura do laser
     laser_geometry::LaserProjection projector;
 
     // Variaveis de nuvem
     PointCloud<PointXYZ>::Ptr acc;
+    PointCloud<PointXYZRGB>::Ptr acc_cor;
 
     // Variaveis de tf2 para ver no RViz
     geometry_msgs::TransformStamped tf_msg;

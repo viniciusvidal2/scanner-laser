@@ -53,6 +53,7 @@ void Scanner::init(){
 
     // FOV da ASTRA segundo fabricante no sentido PAN
     FOV_astra = 60;
+    overlap = 0; // Overlap entre fotos [DEGREES]
 
     // Inicia variaveis do motor
     raw_min = 50; raw_max = 3988;
@@ -60,7 +61,7 @@ void Scanner::init(){
     raw_atual = 0; // Seguranca
     deg_raw = (deg_max - deg_min) / (raw_max - raw_min); raw_deg = 1.0 / deg_raw;
     dentro = 2;
-//    inicio_curso = raw_min; fim_curso = raw_max;
+    //    inicio_curso = raw_min; fim_curso = raw_max;
     this->set_course(deg_min, deg_max);
 
     viagens = 1; // Comecando default valor de viagens total
@@ -69,15 +70,28 @@ void Scanner::init(){
     // Comecar a aquisicao
     comecar = false;
 
+    // Capturar dados da camera
+    capturar_camera = 0;
+
     // Aloca o ponteiro da nuvem acumulada
     acc = (PointCloud<PointXYZ>::Ptr) new PointCloud<PointXYZ>();
     acc->header.frame_id = "map";
+    acc_cor = (PointCloud<PointXYZRGB>::Ptr) new PointCloud<PointXYZRGB>();
+    acc_cor->header.frame_id = "map";
 
-    // Inicia o subscriber sincronizado para as mensagens
+    // Inicia o subscriber sincronizado para as mensagens de laser e motor
     message_filters::Subscriber<sensor_msgs::LaserScan> laser_sub(nh_, "/scan"                           , 100);
     message_filters::Subscriber<nav_msgs::Odometry>     motor_sub(nh_, "/dynamixel_angulos_sincronizados", 100);
     sync.reset(new Sync(syncPolicy(100), laser_sub, motor_sub));
-    conexao_filter =  sync->registerCallback(boost::bind(&Scanner::callback, this, _1, _2));
+    conexao_filter = sync->registerCallback(boost::bind(&Scanner::callback, this, _1, _2));
+
+    // Inicia o subscriber sincronizado para motor e dados da astra - ja pega la o motor_sub
+    message_filters::Subscriber<nav_msgs::Odometry      > mot_sub(nh_, "/dynamixel_angulos_sincronizados", 100);
+    message_filters::Subscriber<sensor_msgs::Image      > img_sub(nh_, "/astra2"         , 100);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> ptc_sub(nh_, "/astra_calibrada", 100);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> pix_sub(nh_, "/astra_calibrada", 100);
+    sync2.reset(new Sync2(syncPolicy2(100), mot_sub, img_sub, ptc_sub, pix_sub));
+    conexao_filter2 = sync2->registerCallback(boost::bind(&Scanner::callback2, this, _1, _2, _3, _4));
 
     // Inicio do publicador da nuvem acumulada e mensagem ros
     ros::Publisher pub_acc = nh_.advertise<sensor_msgs::PointCloud2>("/laser_acumulada", 100);
@@ -136,14 +150,19 @@ void Scanner::set_course(double min, double max){
         while(ac < max){ // Equanto nao varremos todo o range com o angulo central de captura
             ac += FOV_astra - overlap;
             in  = (ac - FOV_astra/2 < min) ? min : ac - FOV_astra/2;
-            in  = (ac + FOV_astra/2 > max) ? max : ac + FOV_astra/2;
+            fn  = (ac + FOV_astra/2 > max) ? max : ac + FOV_astra/2;
             angulos_captura.push_back(ac); inicio_nuvens.push_back(in); final_nuvens.push_back(fn);
         }
     }
+
+    nuvens_parciais.clear() ; nuvens_parciais.resize(angulos_captura.size());
+    imagens_parciais.clear(); imagens_parciais.resize(angulos_captura.size());
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::set_overlap(float o_pct){
     overlap = FOV_astra * o_pct/100;
+    // Ajusta os intervalos la entre as nuvens nessa funçao de uma vez tambem
+    set_course(raw2deg(inicio_curso), raw2deg(fim_curso));
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::set_trips(int t){
@@ -170,73 +189,83 @@ bool Scanner::begin_reached(int &r){
 ///////////////////////////////////////////////////////////////////////////////////////////
 bool Scanner::save_cloud(){
     if(acc->size() > 10){
-    /// Calcular normais apontadas para o centro (origem) ///
-    // Calcula centro da camera aqui
-    Eigen::Vector3f C = Eigen::Vector3f::Zero();
-    search::KdTree<PointXYZ>::Ptr tree (new search::KdTree<PointXYZ>());
+        // Projetar cada nuvem parcial na foto correspondente e colorir todo mundo ali para o resultado final
+        // Alterar total a nuvem que se ve
 
-    // Calculando as normais
-    NormalEstimationOMP<PointXYZ, Normal> ne;
-    ne.setInputCloud(acc);
+        // Salvar cada nuvem parcial
 
-    ne.setSearchMethod(tree);
-    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
-    ne.setKSearch(20);
-    ne.setNumberOfThreads(8);
+        // Salvar a nuvem final de forma correta
+        saw.process(imagens_parciais, nuvens_parciais, acc)
+        // Salvar o arquivo final de angulos para pos processamento
 
-    ne.compute(*cloud_normals);
 
-    PointCloud<PointNormal>::Ptr acc_normal (new PointCloud<PointNormal>());
-    concatenateFields(*acc, *cloud_normals, *acc_normal);
+        /// Calcular normais apontadas para o centro (origem) ///
+        // Calcula centro da camera aqui
+        Eigen::Vector3f C = Eigen::Vector3f::Zero();
+        search::KdTree<PointXYZ>::Ptr tree (new search::KdTree<PointXYZ>());
 
-    vector<int> indicesnan;
-    removeNaNNormalsFromPointCloud(*acc_normal, *acc_normal, indicesnan);
+        // Calculando as normais
+        NormalEstimationOMP<PointXYZ, Normal> ne;
+        ne.setInputCloud(acc);
 
-    // Forcar virar as normais na marra
-    for(unsigned long i=0; i < acc_normal->size(); i++){
-        Eigen::Vector3f normal, cp;
-        normal << acc_normal->points[i].normal_x, acc_normal->points[i].normal_y, acc_normal->points[i].normal_z;
-        cp << C(0)-acc_normal->points[i].x, C(1)-acc_normal->points[i].y, C(2)-acc_normal->points[i].z;
-        float cos_theta = (normal.dot(cp))/(normal.norm()*cp.norm());
-        if(cos_theta <= 0){ // Esta apontando errado, deve inverter
-            acc_normal->points[i].normal_x = -acc_normal->points[i].normal_x;
-            acc_normal->points[i].normal_y = -acc_normal->points[i].normal_y;
-            acc_normal->points[i].normal_z = -acc_normal->points[i].normal_z;
+        ne.setSearchMethod(tree);
+        PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
+        ne.setKSearch(20);
+        ne.setNumberOfThreads(8);
+
+        ne.compute(*cloud_normals);
+
+        PointCloud<PointNormal>::Ptr acc_normal (new PointCloud<PointNormal>());
+        concatenateFields(*acc, *cloud_normals, *acc_normal);
+
+        vector<int> indicesnan;
+        removeNaNNormalsFromPointCloud(*acc_normal, *acc_normal, indicesnan);
+
+        // Forcar virar as normais na marra
+        for(unsigned long i=0; i < acc_normal->size(); i++){
+            Eigen::Vector3f normal, cp;
+            normal << acc_normal->points[i].normal_x, acc_normal->points[i].normal_y, acc_normal->points[i].normal_z;
+            cp << C(0)-acc_normal->points[i].x, C(1)-acc_normal->points[i].y, C(2)-acc_normal->points[i].z;
+            float cos_theta = (normal.dot(cp))/(normal.norm()*cp.norm());
+            if(cos_theta <= 0){ // Esta apontando errado, deve inverter
+                acc_normal->points[i].normal_x = -acc_normal->points[i].normal_x;
+                acc_normal->points[i].normal_y = -acc_normal->points[i].normal_y;
+                acc_normal->points[i].normal_z = -acc_normal->points[i].normal_z;
+            }
         }
-    }
 
-    // Limpar outliers aqui de uma vez
-    ROS_INFO("Comecando a filtrar a nuvem ...");
-    pcl::RadiusOutlierRemoval<PointNormal> out;
-    out.setRadiusSearch(0.1);
-    out.setMinNeighborsInRadius(10);
-    out.setInputCloud(acc_normal);
-    out.filter(*acc_normal);
+        // Limpar outliers aqui de uma vez
+        ROS_INFO("Comecando a filtrar a nuvem ...");
+        pcl::RadiusOutlierRemoval<PointNormal> out;
+        out.setRadiusSearch(0.1);
+        out.setMinNeighborsInRadius(10);
+        out.setInputCloud(acc_normal);
+        out.filter(*acc_normal);
 
-    pcl::StatisticalOutlierRemoval<PointNormal> sor;
-    sor.setInputCloud(acc_normal);
-    sor.setMeanK(1);
-    sor.setStddevMulThresh(1);
-    sor.filter(*acc_normal);
+        pcl::StatisticalOutlierRemoval<PointNormal> sor;
+        sor.setInputCloud(acc_normal);
+        sor.setMeanK(1);
+        sor.setStddevMulThresh(1);
+        sor.filter(*acc_normal);
 
-    ROS_INFO("Nuvem filtrada.");
+        ROS_INFO("Nuvem filtrada.");
 
-    // Ver o tempo para diferenciar bags gravadas automaticamente
-    time_t t = time(0);
-    struct tm * now = localtime( & t );
-    std::string hour, minutes, home;
-    char const* tmp = getenv("HOME");
-    if(tmp)
-        home = std::string(tmp);
-    hour    = boost::lexical_cast<std::string>(now->tm_hour);
-    minutes = boost::lexical_cast<std::string>(now->tm_min );
-    std::string filename = home + "/Desktop/laser_" + hour + "h_" + minutes + "m.ply";
+        // Ver o tempo para diferenciar bags gravadas automaticamente
+        time_t t = time(0);
+        struct tm * now = localtime( & t );
+        std::string hour, minutes, home;
+        char const* tmp = getenv("HOME");
+        if(tmp)
+            home = std::string(tmp);
+        hour    = boost::lexical_cast<std::string>(now->tm_hour);
+        minutes = boost::lexical_cast<std::string>(now->tm_min );
+        std::string filename = home + "/Desktop/laser_" + hour + "h_" + minutes + "m.ply";
 
-    // Checar se tudo certo para salvar a nuvem
-    if(pcl::io::savePLYFileASCII(filename, *acc_normal))
-        return true;
-    else
-        return false;
+        // Checar se tudo certo para salvar a nuvem
+        if(pcl::io::savePLYFileASCII(filename, *acc_normal))
+            return true;
+        else
+            return false;
     } else {
         ROS_WARN("Nao tem nuvem ainda seu imbecil !");
         return false;
@@ -295,24 +324,38 @@ void Scanner::send_to_opposite_edge(int t){
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+void Scanner::accumulate_parcial_cloud(PointCloud<PointXYZ>::Ptr cloud, double ang_raw){
+    double theta_y = raw2deg(ang_raw - raw_ref);
+
+    PointCloud<PointXYZ>::Ptr temp (new PointCloud<PointXYZ>());
+    for(size_t i=0; i < angulos_captura.size(); i++){
+        if(theta_y >= inicio_nuvens[i] && theta_y <= final_nuvens[i]){
+            *temp = nuvens_parciais[i];
+            *temp += *cloud;
+            nuvens_parciais[i] = *temp;
+            ROS_INFO("Adicionamos nuvem %zu, limites %.1f e %.1f, com tamanho agora de %zu.", i, inicio_nuvens[i], final_nuvens[i], nuvens_parciais[i].size());
+        }
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f Scanner::transformFromRaw(double raw){
     // Valor em graus que girou, tirando a referencia, convertido para frame global ODOM:
-    // theta_y = -degrees (contrario a mao direita)
-    double theta_y = -raw2deg(raw - raw_ref);
+    // theta_y = degrees (a favor da mao direita no rviz)
+    double theta_y = raw2deg(raw - raw_ref);
 
     // Constroi matriz de rotacao
     Eigen::Matrix3f R;
     R = Eigen::AngleAxisf(               0, Eigen::Vector3f::UnitX()) *
-        Eigen::AngleAxisf(DEG2RAD(theta_y), Eigen::Vector3f::UnitY()) *
-        Eigen::AngleAxisf(               0, Eigen::Vector3f::UnitZ());
+            Eigen::AngleAxisf(DEG2RAD(theta_y), Eigen::Vector3f::UnitY()) *
+            Eigen::AngleAxisf(               0, Eigen::Vector3f::UnitZ());
     // Constroi matriz homgenea e retorna
     Eigen::MatrixXf t(3, 1);
     t << 0.0148,
-              0,
-              0;
+            0,
+            0;
     Eigen::Matrix4f T;
     T << R, R*t,
-         0, 0, 0, 1;
+            0, 0, 0, 1;
 
     // Prepara a mensagem atual de tf2 para ser transmitida e enviar
     tf_msg.header.stamp = ros::Time::now();
@@ -366,12 +409,49 @@ void Scanner::callback(const sensor_msgs::LaserScanConstPtr &msg_laser, const na
         // Aplicar transformada de acordo com o angulo
         Eigen::Matrix4f T = transformFromRaw(msg_motor->pose.pose.position.x);
         transformPointCloud(*cloud, *cloud, T);
-        // Acumular nuvem
+        // Acumular nuvem global - vista no rviz
         *acc += *cloud;
+        // Acumular nuvem parcial correta
+        accumulate_parcial_cloud(cloud, msg_motor->pose.pose.position.x);
         // Falar o ponto atual para a progressBar
         new_step();
 
     }
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Scanner::callback2(const nav_msgs::OdometryConstPtr& msg_motor,
+                        const sensor_msgs::ImageConstPtr& msg_imagem,
+                        const sensor_msgs::PointCloud2ConstPtr& msg_nuvem,
+                        const sensor_msgs::PointCloud2ConstPtr& msg_pixels){
+    // Salvar dados no caso de estarmos na primeira viagem
+    if(viagem_atual == 1){
+
+        // Se estiver proximo a algum dos angulos de captura ligamos
+        for(size_t i=0; i < angulos_captura.size(); i++){
+            if((abs(raw2deg(msg_motor->pose.pose.position.x) - angulos_captura[i]) < dentro) && capturar_camera == 0){
+                // Absorver imagem
+                cv_bridge::CvImagePtr imptr;
+                imptr = cv_bridge::toCvCopy(msg_imagem, sensor_msgs::image_encodings::BGR8);
+                imagens_parciais[i] = imptr->image;
+
+                // Absorver nuvens
+                PointCloud<PointXYZRGB>::Ptr nuvem_astra  (new PointCloud<PointXYZRGB>());
+                PointCloud<PointXYZ>::Ptr    nuvem_pixels (new PointCloud<PointXYZ>()   );
+                fromROSMsg(msg_nuvem , *nuvem_astra );
+                fromROSMsg(msg_pixels, *nuvem_pixels);
+
+                // Salvar imagens e nuvens
+                saw.save_image_and_clouds(imptr->image, nuvem_astra, nuvem_pixels, i);
+
+                // Acerta o contador de dados capturados para nao repetir
+                capturar_camera++;
+            } else {
+                capturar_camera = 0;
+            }
+        }
+
+    }
+
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 } // Fim do namespace

@@ -51,7 +51,7 @@ include_directories(${CUDA_INCLUDE_DIRS})
 ## DEPENDS: system dependencies of this project that dependent projects also need
 
 # Parametros ajustaveis zed-astra calibracao
-generate_dynamic_reconfigure_options(cfg/params.cfg)
+#generate_dynamic_reconfigure_options(cfg/params.cfg)
 #include_directories(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
 catkin_package(
 #  INCLUDE_DIRS include
@@ -80,7 +80,8 @@ include_directories(
 
 add_executable(astra_calibrada src/astra_calibrada.cpp)
 #target_compile_options(astra_calibrada PRIVATE ${OpenMP_FLAGS})
-add_dependencies(astra_calibrada ${PROJECT_NAME}_gencfg ${catkin_EXPORTED_TARGETS})
+#add_dependencies(astra_calibrada ${catkin_EXPORTED_TARGETS})
+#add_dependencies(astra_calibrada ${PROJECT_NAME}_gencfg ${catkin_EXPORTED_TARGETS})
 target_link_libraries(astra_calibrada
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}

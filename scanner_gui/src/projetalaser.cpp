@@ -25,7 +25,6 @@ void ProjetaLaser::init(){
     nuvem = (PointCloud<PointT>::Ptr) new PointCloud<PointT>();
     // Iniciando matriz de transformação fixa referente a rotaçao de eixos - CAPRICHAR AINDA
     // Eixos LASER -> ASTRA
-    ROS_INFO("antes da identidade do eigen");
     Eigen::Matrix3f matrix;
     matrix = Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitZ()) *
              Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitX()) *
@@ -75,11 +74,9 @@ void ProjetaLaser::process(){
             cv::Vec3b cor;
             cor[0] = nuvem->points[i].b; cor[1] = nuvem->points[i].g; cor[2] = nuvem->points[i].r;
             foto_virtual.at<cv::Vec3b>(cv::Point(X(0,0), X(1,0))) = cor;
-//            ROS_INFO("projetou alguem, com cores %d   %d   %d", cor[0], cor[1], cor[2]);
         }
     }
-    // Salvar foto final para analise
-//    ROS_INFO(" NAO GRAVAMOS IMAGEM");
+    // Salvar foto final para analisar
     char* home;
     home = getenv("HOME");
     std::string nome = std::string(home)+"/Desktop/camera_virtual.jpg";

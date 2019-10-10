@@ -80,7 +80,7 @@ private Q_SLOTS:
 
         void update_progressBar();
 
-        void on_checkBox_intensidades_stateChanged(int v);
+        void on_lineEdit_overlap_returnPressed();
 
         /// ABA 2 ///
         void on_pushButton_nuvemalvo_clicked();

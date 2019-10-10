@@ -2,7 +2,6 @@
 
 <arg name="laser_min" default="-0.785"/> <!--45 graus-->
 <arg name="laser_max" default="0.785"/>
-<arg name="capt_intensidade" default="false"/> <!--capturar as intensidades da leitura do laser-->
 <arg name="set_pan_moving_speed" default="10"/>
 <arg name="online" default="true"/>
 
@@ -18,7 +17,7 @@
 <node name="hokuyo" pkg="hokuyo_node" type="hokuyo_node" respawn="false" output="screen">
 <param name="calibrate_time" type="bool" value="false"/>
 <param name="port" type="string" value="/dev/ttyACM0"/>
-<param name="intensity" type="bool" value="$(arg capt_intensidade)"/>
+<param name="intensity" type="bool" value="false"/>
 
 <param name="skip" type="int" value="0"/>
 <param name="min_ang" type="double" value="$(arg laser_min)"/>

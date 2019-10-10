@@ -201,9 +201,19 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_6">
             <item>
-             <widget class="QCheckBox" name="checkBox_intensidades">
+             <widget class="QLabel" name="label_11">
               <property name="text">
-               <string>Capturar intensidades do Laser</string>
+               <string>Overlap entre captura de imagens (pct) :</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="lineEdit_overlap">
+              <property name="text">
+               <string>0</string>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
               </property>
              </widget>
             </item>

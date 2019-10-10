@@ -133,33 +133,6 @@ void MainWindow::update_progressBar(){
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void MainWindow::on_checkBox_intensidades_stateChanged(int v){
-    if(ui.checkBox_intensidades->isChecked()){
-        laser_min = -55; laser_max = 55;
-        ui.dial_minlaser->setMinimum(-60);
-        ui.dial_minlaser->setMaximum( 60);
-        ui.dial_minlaser->setValue(int(laser_min));
-        ui.dial_maxlaser->setMinimum(-60);
-        ui.dial_maxlaser->setMaximum( 60);
-        ui.dial_maxlaser->setValue(int(laser_max));
-
-    } else {
-
-        laser_min = -90; laser_max = 90;
-        ui.dial_minlaser->setMinimum(-90);
-        ui.dial_minlaser->setMaximum( 90);
-        ui.dial_minlaser->setValue(int(laser_min));
-        ui.dial_maxlaser->setMinimum(-90);
-        ui.dial_maxlaser->setMaximum( 90);
-        ui.dial_maxlaser->setValue(int(laser_max));
-    }
-
-    ui.lineEdit_minmotor->setText(QString::number(ui.dial_minmotor->value()));
-    ui.lineEdit_maxmotor->setText(QString::number(ui.dial_maxmotor->value()));
-    ui.lineEdit_minlaser->setText(QString::number(ui.dial_minlaser->value()));
-    ui.lineEdit_maxlaser->setText(QString::number(ui.dial_maxlaser->value()));
-}
-///////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// PUSHBUTTONS ///////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::on_pushButton_ligarscanner_clicked(){
@@ -171,12 +144,7 @@ void MainWindow::on_pushButton_ligarscanner_clicked(){
     std::string ligar = "gnome-terminal -x sh -c 'roslaunch scanner_gui lancar_scanner.launch ";
     ligar = ligar + "laser_min:=" + minl + " ";
     ligar = ligar + "laser_max:=" + maxl + " ";
-    ligar = ligar + "set_pan_moving_speed:=" + ui.lineEdit_velocidadepan->text().toStdString() + " ";
-    if(ui.checkBox_intensidades->isChecked()){
-        ligar = ligar + "capt_intensidade:=true'";
-    } else {
-        ligar = ligar + "capt_intensidade:=false'";
-    }
+    ligar = ligar + "set_pan_moving_speed:=" + ui.lineEdit_velocidadepan->text().toStdString() + "'";
     system(ligar.c_str());
     // Colocar dentro da classe os valores de inicio e fim de curso
     scan.set_course(double(ui.dial_minmotor->value()), double(ui.dial_maxmotor->value()));
@@ -197,7 +165,9 @@ void MainWindow::on_pushButton_inicio_clicked(){
         r.sleep();
     }
     ROS_WARN("Podemos comecar a aquisitar !!");
-    // Habilita o outro botao
+    // Seta o overlap e os limites mais uma vez
+    scan.set_overlap(ui.lineEdit_overlap->text().toFloat());
+    // Habilita os outros botoes
     ui.pushButton_aquisicao->setEnabled(true);
     ui.pushButton_fimaquisicao->setEnabled(true);
     ui.lineEdit_viagens->setEnabled(true);
@@ -281,6 +251,11 @@ void MainWindow::on_lineEdit_minlaser_returnPressed(){
     ui.dial_minlaser->setValue(ui.lineEdit_minlaser->text().toInt());
     // Novo valor para a variavel local do laser
     laser_min = ui.lineEdit_minlaser->text().toDouble();
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void MainWindow::on_lineEdit_overlap_returnPressed(){
+    // Setar nova porcentagem de overlap na classe
+    scan.set_overlap(ui.lineEdit_overlap->text().toFloat());
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::on_lineEdit_maxlaser_returnPressed(){
