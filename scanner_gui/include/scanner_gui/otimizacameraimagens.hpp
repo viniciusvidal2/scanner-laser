@@ -78,7 +78,12 @@ public:
     OtimizaCameraImagens();
     virtual ~OtimizaCameraImagens();
 
-    void process_pipeline();
+    Eigen::Matrix4f process_pipeline(cv_bridge::CvImagePtr imagem_zed,
+                          cv_bridge::CvImagePtr imagem_ast,
+                          PointCloud<PointXYZ>::Ptr nuvem_pix_total,
+                          PointCloud<PointC>::Ptr nuvem_bat,
+                          Eigen::Matrix4f T_,
+                          float &foco);
     void init();
 
 private:

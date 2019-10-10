@@ -56,7 +56,7 @@ Eigen::Matrix4f OtimizaCameraImagens::process_pipeline(cv_bridge::CvImagePtr ima
     camera co; // camera com resultados para otimizar
     Eigen::Vector2f s(imagem_zed->image.cols/2.0, imagem_zed->image.rows/2.0);
     bool funcionou;
-    co = bat(imagePointsZed, objectPointsZed, Tazo, fzed, s, funcionou);
+    co = bat(imagePointsZed, objectPointsZed, T_projecao_atual, fzed, s, funcionou);
 
     // Uma vez otimizado pelo bat a partir das correspondencias de pontos
     if(funcionou){
@@ -65,6 +65,8 @@ Eigen::Matrix4f OtimizaCameraImagens::process_pipeline(cv_bridge::CvImagePtr ima
     } else {
         foco = fzed;
     }
+
+    return T_projecao_atual;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void OtimizaCameraImagens::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr zed, PointCloud<PointC>::Ptr cloud){
