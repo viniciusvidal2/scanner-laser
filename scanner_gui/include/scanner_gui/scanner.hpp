@@ -73,6 +73,8 @@
 #include <QMutex>
 #include <QString>
 
+#include "saveandwork.hpp"
+
 namespace scanner_gui{
 
 using namespace message_filters;
@@ -172,6 +174,9 @@ private:
     // Variaveis de tf2 para ver no RViz
     geometry_msgs::TransformStamped tf_msg;
     tf2::Quaternion q;
+
+    // Objeto da classe de processo e salvar os dados
+    SaveAndWork* saw;
 
 };
 

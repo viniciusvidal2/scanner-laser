@@ -79,6 +79,9 @@ void Scanner::init(){
     acc_cor = (PointCloud<PointXYZRGB>::Ptr) new PointCloud<PointXYZRGB>();
     acc_cor->header.frame_id = "map";
 
+    // Objeto de trabalho e salvamento das nuvens
+    saw = new SaveAndWork();
+
     // Inicia o subscriber sincronizado para as mensagens de laser e motor
     message_filters::Subscriber<sensor_msgs::LaserScan> laser_sub(nh_, "/scan"                           , 100);
     message_filters::Subscriber<nav_msgs::Odometry>     motor_sub(nh_, "/dynamixel_angulos_sincronizados", 100);
@@ -117,8 +120,12 @@ void Scanner::init(){
     ros::Rate rate(2);
     while(ros::ok()){
 
-        // Publicar a nuvem
-        toROSMsg(*acc, msg_acc);
+        // Publicar a nuvem, no final quando a nuvem ficar colorida vai publicar essa nuvem para o usuario
+        if(acc->size() >= acc_cor->size()){
+            toROSMsg(*acc, msg_acc);
+        } else {
+            toROSMsg(*acc_cor, msg_acc);
+        }
         msg_acc.header.stamp = ros::Time::now();
         pub_acc.publish(msg_acc);
         // Publicar a tf
@@ -195,9 +202,9 @@ bool Scanner::save_cloud(){
         // Salvar cada nuvem parcial
 
         // Salvar a nuvem final de forma correta
-        saw.process(imagens_parciais, nuvens_parciais, acc)
+        saw->process_color_and_save(imagens_parciais, nuvens_parciais, acc, acc_cor);
         // Salvar o arquivo final de angulos para pos processamento
-
+        saw->save_angles_file(inicio_nuvens, final_nuvens, angulos_captura);
 
         /// Calcular normais apontadas para o centro (origem) ///
         // Calcula centro da camera aqui
@@ -437,11 +444,11 @@ void Scanner::callback2(const nav_msgs::OdometryConstPtr& msg_motor,
                 // Absorver nuvens
                 PointCloud<PointXYZRGB>::Ptr nuvem_astra  (new PointCloud<PointXYZRGB>());
                 PointCloud<PointXYZ>::Ptr    nuvem_pixels (new PointCloud<PointXYZ>()   );
-                fromROSMsg(msg_nuvem , *nuvem_astra );
-                fromROSMsg(msg_pixels, *nuvem_pixels);
+                fromROSMsg(*msg_nuvem , *nuvem_astra );
+                fromROSMsg(*msg_pixels, *nuvem_pixels);
 
                 // Salvar imagens e nuvens
-                saw.save_image_and_clouds(imptr->image, nuvem_astra, nuvem_pixels, i);
+                saw->save_image_and_clouds_partial(imptr->image, nuvem_astra, nuvem_pixels, i);
 
                 // Acerta o contador de dados capturados para nao repetir
                 capturar_camera++;
