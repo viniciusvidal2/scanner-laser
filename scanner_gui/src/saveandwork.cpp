@@ -53,7 +53,7 @@ void SaveAndWork::save_image_and_clouds_partial(cv::Mat imagem, PointCloud<Point
     savePLYFileASCII(pasta+nome_nuvem_pix, *nuvem_pixels);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void SaveAndWork::process_color_and_save(std::vector<cv::Mat> imagens, std::vector<PointCloud<PointXYZ>> nuvens, PointCloud<PointXYZ>::Ptr acumulada_raiz, PointCloud<PointC>::Ptr acumulada_colorida){
+void SaveAndWork::process_color_and_save(std::vector<cv::Mat> imagens, std::vector<PointCloud<PointXYZ>> nuvens, std::vector<float> angulos, PointCloud<PointXYZ>::Ptr acumulada_raiz, PointCloud<PointC>::Ptr acumulada_colorida){
     // Projetar cada nuvem parcial na foto correspondente e colorir todo mundo ali para o resultado final
 
     // Alterar total a nuvem que se ve para nuvem colorida sem normais
@@ -68,9 +68,19 @@ void SaveAndWork::process_color_and_save(std::vector<cv::Mat> imagens, std::vect
 ///////////////////////////////////////////////////////////////////////////////////////////
 void SaveAndWork::save_angles_file(std::vector<float> in, std::vector<float> fn, std::vector<float> ac){
     // Abrir arquivo
-
-    // Escrever linha a linha
-    // ANGULO_INICIO ANGULO_CAPTURA ANGULO_FINAL
+    std::string nome_arquivo = pasta+"angulos.txt";
+    std::string linha;
+    ofstream arquivo(nome_arquivo);
+    if(arquivo.is_open()){
+        // Escrever linha a linha
+        for(size_t i=0; i < in.size(); i++){
+            // ANGULO_INICIO ANGULO_CAPTURA ANGULO_FINAL
+            linha = std::to_string(in[i]) + " " + std::to_string(ac[i]) + " " + std::to_string(fn[i]) + "\n";
+            std::replace(linha.begin(), linha.end(), ',', '.');
+            arquivo << linha;
+        }
+    }
+    arquivo.close();
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void SaveAndWork::process_and_save_final_cloud(PointCloud<PointT>::Ptr entrada){

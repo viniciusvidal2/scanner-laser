@@ -196,83 +196,10 @@ bool Scanner::begin_reached(int &r){
 ///////////////////////////////////////////////////////////////////////////////////////////
 bool Scanner::save_cloud(){
     if(acc->size() > 10){
-        // Projetar cada nuvem parcial na foto correspondente e colorir todo mundo ali para o resultado final
-        // Alterar total a nuvem que se ve
-
-        // Salvar cada nuvem parcial
-
         // Salvar a nuvem final de forma correta
-        saw->process_color_and_save(imagens_parciais, nuvens_parciais, acc, acc_cor);
+        saw->process_color_and_save(imagens_parciais, nuvens_parciais, angulos_captura, acc, acc_cor);
         // Salvar o arquivo final de angulos para pos processamento
         saw->save_angles_file(inicio_nuvens, final_nuvens, angulos_captura);
-
-        /// Calcular normais apontadas para o centro (origem) ///
-        // Calcula centro da camera aqui
-        Eigen::Vector3f C = Eigen::Vector3f::Zero();
-        search::KdTree<PointXYZ>::Ptr tree (new search::KdTree<PointXYZ>());
-
-        // Calculando as normais
-        NormalEstimationOMP<PointXYZ, Normal> ne;
-        ne.setInputCloud(acc);
-
-        ne.setSearchMethod(tree);
-        PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
-        ne.setKSearch(20);
-        ne.setNumberOfThreads(8);
-
-        ne.compute(*cloud_normals);
-
-        PointCloud<PointNormal>::Ptr acc_normal (new PointCloud<PointNormal>());
-        concatenateFields(*acc, *cloud_normals, *acc_normal);
-
-        vector<int> indicesnan;
-        removeNaNNormalsFromPointCloud(*acc_normal, *acc_normal, indicesnan);
-
-        // Forcar virar as normais na marra
-        for(unsigned long i=0; i < acc_normal->size(); i++){
-            Eigen::Vector3f normal, cp;
-            normal << acc_normal->points[i].normal_x, acc_normal->points[i].normal_y, acc_normal->points[i].normal_z;
-            cp << C(0)-acc_normal->points[i].x, C(1)-acc_normal->points[i].y, C(2)-acc_normal->points[i].z;
-            float cos_theta = (normal.dot(cp))/(normal.norm()*cp.norm());
-            if(cos_theta <= 0){ // Esta apontando errado, deve inverter
-                acc_normal->points[i].normal_x = -acc_normal->points[i].normal_x;
-                acc_normal->points[i].normal_y = -acc_normal->points[i].normal_y;
-                acc_normal->points[i].normal_z = -acc_normal->points[i].normal_z;
-            }
-        }
-
-        // Limpar outliers aqui de uma vez
-        ROS_INFO("Comecando a filtrar a nuvem ...");
-        pcl::RadiusOutlierRemoval<PointNormal> out;
-        out.setRadiusSearch(0.1);
-        out.setMinNeighborsInRadius(10);
-        out.setInputCloud(acc_normal);
-        out.filter(*acc_normal);
-
-        pcl::StatisticalOutlierRemoval<PointNormal> sor;
-        sor.setInputCloud(acc_normal);
-        sor.setMeanK(1);
-        sor.setStddevMulThresh(1);
-        sor.filter(*acc_normal);
-
-        ROS_INFO("Nuvem filtrada.");
-
-        // Ver o tempo para diferenciar bags gravadas automaticamente
-        time_t t = time(0);
-        struct tm * now = localtime( & t );
-        std::string hour, minutes, home;
-        char const* tmp = getenv("HOME");
-        if(tmp)
-            home = std::string(tmp);
-        hour    = boost::lexical_cast<std::string>(now->tm_hour);
-        minutes = boost::lexical_cast<std::string>(now->tm_min );
-        std::string filename = home + "/Desktop/laser_" + hour + "h_" + minutes + "m.ply";
-
-        // Checar se tudo certo para salvar a nuvem
-        if(pcl::io::savePLYFileASCII(filename, *acc_normal))
-            return true;
-        else
-            return false;
     } else {
         ROS_WARN("Nao tem nuvem ainda seu imbecil !");
         return false;
