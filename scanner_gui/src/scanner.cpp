@@ -79,6 +79,19 @@ void Scanner::init(){
     acc_cor = (PointCloud<PointXYZRGB>::Ptr) new PointCloud<PointXYZRGB>();
     acc_cor->header.frame_id = "map";
 
+    // Matriz intrinseca da astra, rotação de eixos entre laser e astra e deslocamento no novo eixo
+    Eigen::Matrix3f K;
+    K << 525.1389,    1.4908,  324.1741,
+                0,  521.6805,  244.8827,
+                0,         0,    1.0000;
+    Eigen::Matrix3f matrix;
+    matrix = Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitZ()) *
+             Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitX()) *
+             Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitZ());
+    Eigen::Matrix4f T_eixos = Eigen::Matrix4f::Identity();
+    T_eixos.block<3,3>(0, 0) << matrix;
+    T_eixos.block<3,1>(0, 3) << 0.004, 0.105, 0; // [m]
+
     // Objeto de trabalho e salvamento das nuvens
     saw = new SaveAndWork();
 
@@ -91,8 +104,8 @@ void Scanner::init(){
     // Inicia o subscriber sincronizado para motor e dados da astra - ja pega la o motor_sub
     message_filters::Subscriber<nav_msgs::Odometry      > mot_sub(nh_, "/dynamixel_angulos_sincronizados", 100);
     message_filters::Subscriber<sensor_msgs::Image      > img_sub(nh_, "/astra2"         , 100);
-    message_filters::Subscriber<sensor_msgs::PointCloud2> ptc_sub(nh_, "/astra_calibrada", 100);
-    message_filters::Subscriber<sensor_msgs::PointCloud2> pix_sub(nh_, "/astra_calibrada", 100);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> ptc_sub(nh_, "/astra_projetada", 100);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> pix_sub(nh_, "/pixels"         , 100);
     sync2.reset(new Sync2(syncPolicy2(100), mot_sub, img_sub, ptc_sub, pix_sub));
     conexao_filter2 = sync2->registerCallback(boost::bind(&Scanner::callback2, this, _1, _2, _3, _4));
 
@@ -145,20 +158,21 @@ void Scanner::set_course(double min, double max){
     /// Preencher os vetores conforme angulos de captura, inicio e fim das nuvens
     angulos_captura.clear(); inicio_nuvens.clear(); final_nuvens.clear();
 
-    if(max - min <= FOV_astra - overlap){ // Se so cabe uma captura por causa do range pequeno
+    if(max - min < FOV_astra - overlap){ // Se so cabe uma captura por causa do range pequeno
         angulos_captura.push_back((min + max)/2);
         inicio_nuvens.push_back(min);
         final_nuvens.push_back(max);
     } else { // Calcular o espaçamento entre as capturas
         float ac = min + FOV_astra/2; // - overlap;
         float in = min, fn = min + FOV_astra - overlap;
-        angulos_captura.push_back(ac); inicio_nuvens.push_back(in); final_nuvens.push_back(fn);
+        ac = (ac >= fn) ? (in + fn)/2 : ac;
 
         while(ac < max){ // Equanto nao varremos todo o range com o angulo central de captura
+            angulos_captura.push_back(ac); inicio_nuvens.push_back(in); final_nuvens.push_back(fn);
             ac += FOV_astra - overlap;
             in  = (ac - FOV_astra/2 < min) ? min : ac - FOV_astra/2;
             fn  = (ac + FOV_astra/2 > max) ? max : ac + FOV_astra/2;
-            angulos_captura.push_back(ac); inicio_nuvens.push_back(in); final_nuvens.push_back(fn);
+            ac  = (ac >= fn) ? (in + fn)/2 : ac;
         }
     }
 
@@ -194,7 +208,7 @@ bool Scanner::begin_reached(int &r){
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-bool Scanner::save_cloud(){
+bool Scanner::save_data(){
     if(acc->size() > 10){
         // Salvar a nuvem final de forma correta
         saw->process_color_and_save(imagens_parciais, nuvens_parciais, angulos_captura, acc, acc_cor);
@@ -328,8 +342,8 @@ void Scanner::callback(const sensor_msgs::LaserScanConstPtr &msg_laser, const na
 
             }
         } else { // Finalizar processo se chegar ao fim do curso
-            ROS_INFO("Chegou ao fim da aquisicao, salvando nuvem na area de trabalho....");
-            this->save_cloud();
+            ROS_INFO("Chegou ao fim da aquisicao, salvando todos os dados ....");
+            this->save_data();
             ROS_INFO("Nuvem salva, conferir la na boa.");
             // Negando a flag novamente
             comecar = false;

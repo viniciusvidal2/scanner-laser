@@ -96,7 +96,7 @@ public:
     void send_to_opposite_edge(int t);
     void start_course();
     bool begin_reached(int &r);
-    bool save_cloud();
+    bool save_data();
     void set_trips(int t);
     void set_overlap(float o);
     int get_current_position();

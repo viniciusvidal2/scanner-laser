@@ -192,7 +192,7 @@ void MainWindow::on_pushButton_fimaquisicao_clicked(){
     // Seta a variavel de controle que fecha o callback funcionar
     scan.set_acquisition(false);
     ROS_INFO("Parou a aquisicao de forma assincrona, salvando a nuvem na area de trabalho....");
-    scan.save_cloud();
+    scan.save_data();
     ROS_INFO("Nuvem salva.");
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
