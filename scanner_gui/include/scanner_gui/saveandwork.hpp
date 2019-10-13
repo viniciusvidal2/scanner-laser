@@ -78,8 +78,7 @@ private:
    Eigen::Matrix4f T_laser_astra;
 
    void process_and_save_final_cloud(PointCloud<PointT>::Ptr entrada);
-   void calculate_normals(PointCloud<PointXYZ> entrada, PointCloud<PointT>::Ptr acc_normal);
-   void calculate_normals(PointCloud<PointC> entrada, PointCloud<PointNormal>::Ptr acc_normal);
+   void calculate_normals(PointCloud<PointC> entrada, PointCloud<PointT>::Ptr acc_normal);
 
    Eigen::Matrix4f calculate_transformation(float thetay_deg);
    PointCloud<PointC> project_cloud_to_image(PointCloud<PointXYZ> in, cv::Mat img, Eigen::Matrix4f T);

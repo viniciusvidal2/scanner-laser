@@ -65,33 +65,33 @@ void SaveAndWork::process_color_and_save(std::vector<cv::Mat> imagens, std::vect
     // Cria vetor de nuvens coloridas parciais
     std::vector<PointCloud<PointC>> nuvens_coloridas(nuvens.size());
     // Para cada nuvem
+    #pragma omp parallel for
     for(size_t i=0; i < nuvens_coloridas.size(); i++){
         // Obter transformaçao entre camera e laser
-        Eigen::Matrix4f T = this->calculate_transformation(angulos[i]);
+        Eigen::Matrix4f T   = this->calculate_transformation(angulos[i]);
         // Projetar e obter nuvem com cor
-        nuvens_coloridas  = this->project_cloud_to_image(nuvens[i], imagens[i], T);
+        nuvens_coloridas[i] = this->project_cloud_to_image(nuvens[i], imagens[i], T);
     }
 
-    // Alterar total a nuvem que se ve para nuvem colorida sem normais
+    // Alterar total a nuvem que se ve no programa principal para nuvem colorida sem normais
     acumulada_colorida->clear();
-    for(size_t i=0; i < nuvens_coloridas->size(); i++){
+    for(size_t i=0; i < nuvens_coloridas.size(); i++){
         *acumulada_colorida += nuvens_coloridas[i];
     }
-    acumulada_raiz->clear();
+    acumulada_raiz->clear(); // Limpa a nuvem sem cor para sinalizar la no principal
 
     // Calcular normais de cada nuvem e salvar
     // Criar nuvem final somando as parciais novamente
     PointCloud<PointT>::Ptr final (new PointCloud<PointT>());
-//    std::vector<PointCloud<PointT>> parciais_normal(nuvens.size());
     PointCloud<PointT>::Ptr temp (new PointCloud<PointT>());
+    #pragma omp parallel for
     for(size_t i=0; i < nuvens.size(); i++){
-        calculate_normals(nuvens[i], temp);
-        final += temp;
-//        parciais_normal[i] = *temp;
+        calculate_normals(nuvens_coloridas[i], temp);
+        *final += *temp;
         savePLYFileASCII(pasta+"parcial_"+std::to_string(i+1)+".ply", *temp);
     }
 
-    // Salvar a nuvem acumulada colorida
+    // Salvar a nuvem acumulada colorida com normais
     this->process_and_save_final_cloud(final);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -114,7 +114,6 @@ void SaveAndWork::save_angles_file(std::vector<float> in, std::vector<float> fn,
 ///////////////////////////////////////////////////////////////////////////////////////////
 void SaveAndWork::process_and_save_final_cloud(PointCloud<PointT>::Ptr entrada){
     // Limpar outliers aqui de uma vez
-    ROS_INFO("Comecando a filtrar a nuvem ...");
     pcl::RadiusOutlierRemoval<PointT> out;
     out.setRadiusSearch(0.1);
     out.setMinNeighborsInRadius(10);
@@ -127,12 +126,9 @@ void SaveAndWork::process_and_save_final_cloud(PointCloud<PointT>::Ptr entrada){
     sor.setStddevMulThresh(1);
     sor.filter(*entrada);
 
-    ROS_INFO("Nuvem filtrada.");
-
     // Salvar a nuvem final com cor e normais certas
     std::string nome_nuvem = "nuvem_final.ply";
     savePLYFileASCII(pasta+nome_nuvem, *entrada);
-    ROS_INFO("Nuvem final salva na pasta.");
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void SaveAndWork::calculate_normals(PointCloud<PointC> entrada, PointCloud<PointT>::Ptr acc_normal){
@@ -142,7 +138,9 @@ void SaveAndWork::calculate_normals(PointCloud<PointC> entrada, PointCloud<Point
 
     // Calculando as normais
     NormalEstimationOMP<PointC, Normal> ne;
-    ne.setInputCloud(entrada);
+    PointCloud<PointC>::Ptr entradaptr (new PointCloud<PointC>());
+    *entradaptr = entrada;
+    ne.setInputCloud(entradaptr);
 
     ne.setSearchMethod(tree);
     PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
@@ -151,43 +149,7 @@ void SaveAndWork::calculate_normals(PointCloud<PointC> entrada, PointCloud<Point
 
     ne.compute(*cloud_normals);
 
-    concatenateFields(*entrada, *cloud_normals, *acc_normal);
-
-    std::vector<int> indicesnan;
-    removeNaNNormalsFromPointCloud(*acc_normal, *acc_normal, indicesnan);
-
-    // Forcar virar as normais na marra
-    for(unsigned long i=0; i < acc_normal->size(); i++){
-        Eigen::Vector3f normal, cp;
-        normal << acc_normal->points[i].normal_x, acc_normal->points[i].normal_y, acc_normal->points[i].normal_z;
-        cp << C(0)-acc_normal->points[i].x, C(1)-acc_normal->points[i].y, C(2)-acc_normal->points[i].z;
-        float cos_theta = (normal.dot(cp))/(normal.norm()*cp.norm());
-        if(cos_theta <= 0){ // Esta apontando errado, deve inverter
-            acc_normal->points[i].normal_x = -acc_normal->points[i].normal_x;
-            acc_normal->points[i].normal_y = -acc_normal->points[i].normal_y;
-            acc_normal->points[i].normal_z = -acc_normal->points[i].normal_z;
-        }
-    }
-
-}
-///////////////////////////////////////////////////////////////////////////////////////////
-void SaveAndWork::calculate_normals(PointCloud<PointXYZ> entrada, PointCloud<PointNormal>::Ptr acc_normal){
-
-    Eigen::Vector3f C = Eigen::Vector3f::Zero();
-    search::KdTree<PointXYZ>::Ptr tree (new search::KdTree<PointXYZ>());
-
-    // Calculando as normais
-    NormalEstimationOMP<PointXYZ, Normal> ne;
-    ne.setInputCloud(entrada);
-
-    ne.setSearchMethod(tree);
-    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
-    ne.setKSearch(20);
-    ne.setNumberOfThreads(8);
-
-    ne.compute(*cloud_normals);
-
-    concatenateFields(*entrada, *cloud_normals, *acc_normal);
+    concatenateFields(*entradaptr, *cloud_normals, *acc_normal);
 
     std::vector<int> indicesnan;
     removeNaNNormalsFromPointCloud(*acc_normal, *acc_normal, indicesnan);
@@ -242,7 +204,10 @@ PointCloud<PointC> SaveAndWork::project_cloud_to_image(PointCloud<PointXYZ> in, 
         if(floor(X(0,0)) >= 0 && floor(X(0,0)) < img.cols && floor(X(1,0)) >= 0 && floor(X(1,0)) < img.rows){
             // Cria ponto, colore e adiciona na nuvem
             PointC ponto;
-
+            ponto.b = img.at<cv::Vec3b>(int(X(0, 1)), int(X(0, 0)))[2];
+            ponto.g = img.at<cv::Vec3b>(int(X(0, 1)), int(X(0, 0)))[1];
+            ponto.r = img.at<cv::Vec3b>(int(X(0, 1)), int(X(0, 0)))[0];
+            ponto.x = in.points[i].x; ponto.y = in.points[i].y; ponto.z = in.points[i].z;
             saida.push_back(ponto);
         }
     }

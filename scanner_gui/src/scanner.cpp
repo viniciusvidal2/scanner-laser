@@ -93,7 +93,7 @@ void Scanner::init(){
     T_eixos.block<3,1>(0, 3) << 0.004, 0.105, 0; // [m]
 
     // Objeto de trabalho e salvamento das nuvens
-    saw = new SaveAndWork();
+    saw = new SaveAndWork(K, T_eixos);
 
     // Inicia o subscriber sincronizado para as mensagens de laser e motor
     message_filters::Subscriber<sensor_msgs::LaserScan> laser_sub(nh_, "/scan"                           , 100);
@@ -176,6 +176,7 @@ void Scanner::set_course(double min, double max){
         }
     }
 
+    // Alocar espaco para vetores de dados salvos da astra
     nuvens_parciais.clear() ; nuvens_parciais.resize(angulos_captura.size());
     imagens_parciais.clear(); imagens_parciais.resize(angulos_captura.size());
 }
@@ -211,9 +212,12 @@ bool Scanner::begin_reached(int &r){
 bool Scanner::save_data(){
     if(acc->size() > 10){
         // Salvar a nuvem final de forma correta
+        ROS_INFO("Nuvens parciais e final serao processadas e salvas...");
         saw->process_color_and_save(imagens_parciais, nuvens_parciais, angulos_captura, acc, acc_cor);
         // Salvar o arquivo final de angulos para pos processamento
+        ROS_INFO("Processadas com sucesso, salvando arquivos de angulos...");
         saw->save_angles_file(inicio_nuvens, final_nuvens, angulos_captura);
+        ROS_INFO("Arquivo de angulos salvo.");
     } else {
         ROS_WARN("Nao tem nuvem ainda seu imbecil !");
         return false;
@@ -262,26 +266,26 @@ void Scanner::send_to_opposite_edge(int t){
         cmd.request.tilt_pos = 0;
         cmd.request.unit     = "raw";
         if(comando_motor.call(cmd))
-            ROS_WARN("Mandamos para o fim de curso %d, viagem # %d !", int(fim_curso), viagem_atual);
+            ROS_WARN("Mandamos para o fim de curso em %d graus, viagem %d !", int(raw2deg(fim_curso)), viagem_atual);
     } else { // Estamos voltando ao inicio
         cmd.request.pan_pos  = inicio_curso; // Primeiro ponta pe
         cmd.request.tilt_pos = 0;
         cmd.request.unit     = "raw";
         if(comando_motor.call(cmd))
-            ROS_WARN("Mandamos para o inicio de curso %d, viagem # %d !", int(inicio_curso), viagem_atual);
+            ROS_WARN("Mandamos para o inicio de curso em %d graus, viagem %d !", int(raw2deg(inicio_curso)), viagem_atual);
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::accumulate_parcial_cloud(PointCloud<PointXYZ>::Ptr cloud, double ang_raw){
     double theta_y = raw2deg(ang_raw - raw_ref);
 
-    PointCloud<PointXYZ>::Ptr temp (new PointCloud<PointXYZ>());
+//    PointCloud<PointXYZ>::Ptr temp (new PointCloud<PointXYZ>());
     for(size_t i=0; i < angulos_captura.size(); i++){
         if(theta_y >= inicio_nuvens[i] && theta_y <= final_nuvens[i]){
-            *temp = nuvens_parciais[i];
-            *temp += *cloud;
-            nuvens_parciais[i] = *temp;
-            ROS_INFO("Adicionamos nuvem %zu, limites %.1f e %.1f, com tamanho agora de %zu.", i, inicio_nuvens[i], final_nuvens[i], nuvens_parciais[i].size());
+//            *temp = nuvens_parciais[i];
+//            *temp += *cloud;
+//            nuvens_parciais[i] = *temp;
+            nuvens_parciais[i] += *cloud;
         }
     }
 }
