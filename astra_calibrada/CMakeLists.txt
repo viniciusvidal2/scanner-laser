@@ -90,29 +90,6 @@ target_link_libraries(astra_calibrada
   ${OpenMP_LIBS}
 )
 
-add_executable(astra_calibrada_felipe src/astra_calibrada_felipe.cpp)
-target_link_libraries(astra_calibrada_felipe
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBS}
-  ${roslib_LIBRARIES}
-)
-
-add_executable(calibrar_astra_online src/calibrar_astra_online.cpp)
-target_link_libraries(calibrar_astra_online
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBS}
-  ${roslib_LIBRARIES}
-)
-
-add_executable(calibrar_astra_zed src/calibrar_astra_zed.cpp)
-target_link_libraries(calibrar_astra_zed
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBS}
-  ${roslib_LIBRARIES}
-)
 
 #add_executable(viewer viewer.cpp)
 #target_link_libraries(viewer ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${roslib_LIBRARIES})
