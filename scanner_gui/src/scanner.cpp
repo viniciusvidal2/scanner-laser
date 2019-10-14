@@ -175,7 +175,7 @@ void Scanner::set_course(double min, double max){
             ac  = (ac >= fn) ? (in + fn)/2 : ac;
         }
     }
-
+ROS_INFO("Tamanho do vetor de nuvens parciais: %zu", angulos_captura.size());
     // Alocar espaco para vetores de dados salvos da astra
     nuvens_parciais.clear() ; nuvens_parciais.resize(angulos_captura.size());
     imagens_parciais.clear(); imagens_parciais.resize(angulos_captura.size());

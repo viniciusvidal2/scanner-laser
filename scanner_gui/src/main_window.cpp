@@ -73,6 +73,9 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     // Ajuste da progressBar
     ui.progressBar->setEnabled(false);
 
+    // Inicia os limites e vetores corretamente de scan, segundo dials
+    scan.set_course(double(ui.dial_minmotor->value()), double(ui.dial_maxmotor->value()));
+
     // Liga signal e slot para a progressBar
     connect(&scan, SIGNAL(new_step()), this, SLOT(update_progressBar()));
 

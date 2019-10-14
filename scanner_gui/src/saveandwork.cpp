@@ -66,11 +66,14 @@ void SaveAndWork::process_color_and_save(std::vector<cv::Mat> imagens, std::vect
     std::vector<PointCloud<PointC>> nuvens_coloridas(nuvens.size());
     // Para cada nuvem
     #pragma omp parallel for
+    ROS_INFO("Quantas nuvens coloridas deveriamos ter? %zu", nuvens.size());
     for(size_t i=0; i < nuvens_coloridas.size(); i++){
         // Obter transformaçao entre camera e laser
         Eigen::Matrix4f T   = this->calculate_transformation(angulos[i]);
         // Projetar e obter nuvem com cor
+        ROS_INFO("Antes de projetar.");
         nuvens_coloridas[i] = this->project_cloud_to_image(nuvens[i], imagens[i], T);
+        ROS_INFO("Depois de projetar.");
     }
 
     // Alterar total a nuvem que se ve no programa principal para nuvem colorida sem normais
@@ -193,20 +196,21 @@ PointCloud<PointC> SaveAndWork::project_cloud_to_image(PointCloud<PointXYZ> in, 
     P = K_astra*T.block<3,4>(0, 0);
     // Nuvem de saida
     PointCloud<PointC> saida;
+    ROS_INFO("Nuvem que chegou aqui, tamanho %zu. Dimensoes da imagem: %d  %d", in.size(), img.cols, img.rows);
     #pragma omp parallel for num_threads(20)
     for(size_t i=0; i < in.size(); i++){
         Eigen::MatrixXf X_(4,1);
         X_ << in.points[i].x, in.points[i].y, in.points[i].z, 1;
         // Projeta e tira a escala
         Eigen::MatrixXf X = P*X_;
-        X = X/X(0,2);
+        X = X/X(2,0);
         // Atribui a cor se for possivel
         if(floor(X(0,0)) >= 0 && floor(X(0,0)) < img.cols && floor(X(1,0)) >= 0 && floor(X(1,0)) < img.rows){
             // Cria ponto, colore e adiciona na nuvem
             PointC ponto;
-            ponto.b = img.at<cv::Vec3b>(int(X(0, 1)), int(X(0, 0)))[2];
-            ponto.g = img.at<cv::Vec3b>(int(X(0, 1)), int(X(0, 0)))[1];
-            ponto.r = img.at<cv::Vec3b>(int(X(0, 1)), int(X(0, 0)))[0];
+            ponto.b = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[2];
+            ponto.g = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[1];
+            ponto.r = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[0];
             ponto.x = in.points[i].x; ponto.y = in.points[i].y; ponto.z = in.points[i].z;
             saida.push_back(ponto);
         }
