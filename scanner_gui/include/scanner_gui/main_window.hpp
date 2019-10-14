@@ -16,7 +16,6 @@
 #include "ui_main_window.h"
 #include "qnode.hpp"
 #include "scanner.hpp"
-#include "registra_nuvem.hpp"
 #include <QFileDialog>
 #include <QLabel>
 #include <QTimer>
@@ -82,45 +81,10 @@ private Q_SLOTS:
 
         void on_lineEdit_overlap_returnPressed();
 
-        /// ABA 2 ///
-        void on_pushButton_nuvemalvo_clicked();
-        void on_pushButton_nuvemfonte_clicked();
-        void on_pushButton_iniciararquivos_clicked();
-
-        void on_horizontalSlider_x_sliderReleased();
-        void on_horizontalSlider_y_sliderReleased();
-        void on_horizontalSlider_z_sliderReleased();
-        void on_dial_x_sliderReleased();
-        void on_dial_y_sliderReleased();
-        void on_dial_z_sliderReleased();
-
-        void on_lineEdit_limitex_returnPressed();
-        void on_lineEdit_limitey_returnPressed();
-        void on_lineEdit_limitez_returnPressed();
-        void on_lineEdit_X_returnPressed();
-        void on_lineEdit_Y_returnPressed();
-        void on_lineEdit_Z_returnPressed();
-        void on_lineEdit_rotacaox_returnPressed();
-        void on_lineEdit_rotacaoy_returnPressed();
-        void on_lineEdit_rotacaoz_returnPressed();
-
-        void on_pushButton_registrar_clicked();
-        void on_pushButton_salvarfinal_clicked();
-
-        /// ABA3 ///
-        void on_pushButton_nuvemacorrigir_clicked();
-        void on_pushButton_visualizarcorrecao_clicked();
-        void on_pushButton_voxel_clicked();
-        void on_pushButton_outliers_clicked();
-        void on_pushButton_salvarnuvemfiltrada_clicked();
-        void on_pushButton_resetafiltro_clicked();
-        void on_pushButton_filtropolinomio_clicked();
-
 private:
 	Ui::MainWindowDesign ui;
 	QNode qnode;
         Scanner scan;
-        RegistraNuvem rn;
 
         double laser_min, laser_max;
 
