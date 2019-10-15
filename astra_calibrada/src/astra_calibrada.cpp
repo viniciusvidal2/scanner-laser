@@ -301,7 +301,7 @@ int main(int argc, char **argv)
     pub_astra  = nh.advertise<sensor_msgs::Image>      ("/astra2"         , 10);
 
     message_filters::Subscriber<sensor_msgs::Image> astra_sub(nh, "/camera/rgb/image_raw"     , 10);
-    message_filters::Subscriber<sensor_msgs::Image> zed_sub  (nh, "/zed/left/image_rect_color", 10);
+    message_filters::Subscriber<sensor_msgs::Image> zed_sub  (nh, "/zed/zed_node/left/image_rect_color", 10);
     message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "/camera/depth/image_raw"   , 10);
     Synchronizer<syncPolicy> sync(syncPolicy(10), astra_sub, zed_sub, depth_sub);
     sync.registerCallback(boost::bind(&callback, _1, _2, _3));
