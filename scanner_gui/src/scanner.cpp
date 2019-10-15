@@ -85,12 +85,16 @@ void Scanner::init(){
                 0,  521.6805,  244.8827,
                 0,         0,    1.0000;
     Eigen::Matrix3f matrix;
-    matrix = Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitZ()) *
-             Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitX()) *
-             Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitZ());
+//    matrix = Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitZ()) *
+//             Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitX()) *
+//             Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitZ());
+    matrix = Eigen::AngleAxisf(      0, Eigen::Vector3f::UnitX()) *
+             Eigen::AngleAxisf( M_PI/2, Eigen::Vector3f::UnitY()) *
+             Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitX());
     Eigen::Matrix4f T_eixos = Eigen::Matrix4f::Identity();
     T_eixos.block<3,3>(0, 0) << matrix;
-    T_eixos.block<3,1>(0, 3) << 0.004, 0.105, 0; // [m]
+//    T_eixos.block<3,1>(0, 3) << 0.004, 0.105, 0; // [m]
+//    T_eixos.block<3,1>(0, 3) << 0.04, 0.55, 0; // [m]
 
     // Objeto de trabalho e salvamento das nuvens
     saw = new SaveAndWork(K, T_eixos);
@@ -158,12 +162,12 @@ void Scanner::set_course(double min, double max){
     /// Preencher os vetores conforme angulos de captura, inicio e fim das nuvens
     angulos_captura.clear(); inicio_nuvens.clear(); final_nuvens.clear();
 
-    if(max - min < FOV_astra - overlap){ // Se so cabe uma captura por causa do range pequeno
+    if(max - min <= FOV_astra - overlap){ // Se so cabe uma captura por causa do range pequeno
         angulos_captura.push_back((min + max)/2);
         inicio_nuvens.push_back(min);
         final_nuvens.push_back(max);
     } else { // Calcular o espaçamento entre as capturas
-        float ac = min + FOV_astra/2; // - overlap;
+        float ac = min + FOV_astra/2 - overlap;
         float in = min, fn = min + FOV_astra - overlap;
         ac = (ac >= fn) ? (in + fn)/2 : ac;
 
@@ -175,7 +179,7 @@ void Scanner::set_course(double min, double max){
             ac  = (ac >= fn) ? (in + fn)/2 : ac;
         }
     }
-ROS_INFO("Tamanho do vetor de nuvens parciais: %zu", angulos_captura.size());
+//ROS_INFO("Tamanho do vetor de nuvens parciais: %zu", angulos_captura.size());
     // Alocar espaco para vetores de dados salvos da astra
     nuvens_parciais.clear() ; nuvens_parciais.resize(angulos_captura.size());
     imagens_parciais.clear(); imagens_parciais.resize(angulos_captura.size());
@@ -184,7 +188,7 @@ ROS_INFO("Tamanho do vetor de nuvens parciais: %zu", angulos_captura.size());
 void Scanner::set_overlap(float o_pct){
     overlap = FOV_astra * o_pct/100;
     // Ajusta os intervalos la entre as nuvens nessa funçao de uma vez tambem
-    set_course(raw2deg(inicio_curso), raw2deg(fim_curso));
+//    set_course(raw2deg(inicio_curso), raw2deg(fim_curso));
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::set_trips(int t){
@@ -288,6 +292,7 @@ void Scanner::accumulate_parcial_cloud(PointCloud<PointXYZ>::Ptr cloud, double a
             nuvens_parciais[i] += *cloud;
         }
     }
+//    ROS_INFO("Tamanho da nuvem parcial 1 e 2: %zu   %zu", nuvens_parciais[0].size(), nuvens_parciais[1].size());
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f Scanner::transformFromRaw(double raw){

@@ -66,14 +66,12 @@ void SaveAndWork::process_color_and_save(std::vector<cv::Mat> imagens, std::vect
     std::vector<PointCloud<PointC>> nuvens_coloridas(nuvens.size());
     // Para cada nuvem
     #pragma omp parallel for
-    ROS_INFO("Quantas nuvens coloridas deveriamos ter? %zu", nuvens.size());
+    ROS_INFO("Quantas nuvens coloridas deveriamos ter? %zu   E quantas imagens? %zu", nuvens.size(), imagens.size());
     for(size_t i=0; i < nuvens_coloridas.size(); i++){
         // Obter transformaçao entre camera e laser
         Eigen::Matrix4f T   = this->calculate_transformation(angulos[i]);
         // Projetar e obter nuvem com cor
-        ROS_INFO("Antes de projetar.");
         nuvens_coloridas[i] = this->project_cloud_to_image(nuvens[i], imagens[i], T);
-        ROS_INFO("Depois de projetar.");
     }
 
     // Alterar total a nuvem que se ve no programa principal para nuvem colorida sem normais
@@ -208,13 +206,26 @@ PointCloud<PointC> SaveAndWork::project_cloud_to_image(PointCloud<PointXYZ> in, 
         if(floor(X(0,0)) >= 0 && floor(X(0,0)) < img.cols && floor(X(1,0)) >= 0 && floor(X(1,0)) < img.rows){
             // Cria ponto, colore e adiciona na nuvem
             PointC ponto;
-            ponto.b = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[2];
+            ponto.b = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[0];
             ponto.g = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[1];
-            ponto.r = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[0];
+            ponto.r = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[2];
+            ponto.x = in.points[i].x; ponto.y = in.points[i].y; ponto.z = in.points[i].z;
+            saida.push_back(ponto);
+        } else {
+            // Cria ponto preto para mostrar onde nao esta chegando
+            PointC ponto;
+            ponto.b = 0; ponto.r = 0; ponto.g = 0;
             ponto.x = in.points[i].x; ponto.y = in.points[i].y; ponto.z = in.points[i].z;
             saida.push_back(ponto);
         }
     }
+
+    // Removendo outliers aqui para mostrar melhor no RViz
+    pcl::StatisticalOutlierRemoval<PointC> sor;
+    sor.setInputCloud(saida.makeShared());
+    sor.setMeanK(1);
+    sor.setStddevMulThresh(1);
+    sor.filter(saida);
 
     return saida;
 }

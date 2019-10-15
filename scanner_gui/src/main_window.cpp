@@ -52,10 +52,10 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.dial_maxmotor->setValue(210);
     ui.dial_minlaser->setMinimum(-90);
     ui.dial_minlaser->setMaximum( 90);
-    ui.dial_minlaser->setValue(int(-25));
+    ui.dial_minlaser->setValue(int(laser_min));
     ui.dial_maxlaser->setMinimum(-90);
     ui.dial_maxlaser->setMaximum( 90);
-    ui.dial_maxlaser->setValue(int(25));
+    ui.dial_maxlaser->setValue(int(laser_max));
     // Ajuste dos lineEdits
     ui.lineEdit_minmotor->setText(QString::number(ui.dial_minmotor->value()));
     ui.lineEdit_maxmotor->setText(QString::number(ui.dial_maxmotor->value()));
@@ -93,13 +93,13 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.horizontalSlider_z->setValue(0);
     // Ajustando Dials com limites e valores iniciais -> GRAUS AQUI
     ui.dial_x->setMinimum(-180);
-    ui.dial_x->setMaximum(180);
+    ui.dial_x->setMaximum( 180);
     ui.dial_x->setValue(0);
     ui.dial_y->setMinimum(-180);
-    ui.dial_y->setMaximum(180);
+    ui.dial_y->setMaximum( 180);
     ui.dial_y->setValue(0);
     ui.dial_z->setMinimum(-180);
-    ui.dial_z->setMaximum(180);
+    ui.dial_z->setMaximum( 180);
     ui.dial_z->setValue(0);
 
     /// --- ABA 3 --- ///
@@ -153,11 +153,18 @@ void MainWindow::on_pushButton_ligarscanner_clicked(){
     scan.set_course(double(ui.dial_minmotor->value()), double(ui.dial_maxmotor->value()));
     // Habilita a sequencia
     ui.pushButton_inicio->setEnabled(true);
+    // Desabilita dials e lineEdits de limites de laser que nao podem mais ser alterados
+    ui.dial_minlaser->setEnabled(false);
+    ui.dial_maxlaser->setEnabled(false);
+    ui.lineEdit_maxlaser->setEnabled(false);
+    ui.lineEdit_minlaser->setEnabled(false);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::on_pushButton_inicio_clicked(){
+    // Seta o overlap e os limites mais uma vez
+//    scan.set_overlap(ui.lineEdit_overlap->text().toFloat());
     // Manda o valor mais atual dos limites de curso
-    scan.set_course(double(ui.dial_minmotor->value()), double(ui.dial_maxmotor->value()));
+//    scan.set_course(double(ui.dial_minmotor->value()), double(ui.dial_maxmotor->value()));
     // Agora pode mandar a classe enviar o comando
     scan.send_begin_course();
     // Espera chegar dando noticia
@@ -168,8 +175,6 @@ void MainWindow::on_pushButton_inicio_clicked(){
         r.sleep();
     }
     ROS_WARN("Podemos comecar a aquisitar !!");
-    // Seta o overlap e os limites mais uma vez
-    scan.set_overlap(ui.lineEdit_overlap->text().toFloat());
     // Habilita os outros botoes
     ui.pushButton_aquisicao->setEnabled(true);
     ui.pushButton_fimaquisicao->setEnabled(true);

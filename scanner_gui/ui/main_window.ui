@@ -262,7 +262,7 @@
             <item>
              <widget class="QLineEdit" name="lineEdit_viagens">
               <property name="text">
-               <string>2</string>
+               <string>4</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignCenter</set>

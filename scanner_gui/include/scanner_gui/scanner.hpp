@@ -151,8 +151,8 @@ private:
     vector<float> angulos_captura;
     vector<float> final_nuvens;    // [DEGREES]
     vector<float> inicio_nuvens;
-    vector<PointCloud<PointXYZ>> nuvens_parciais;
-    vector<cv::Mat> imagens_parciais;
+    vector<PointCloud<PointXYZ>> nuvens_parciais; // Nuvens do laser
+    vector<cv::Mat> imagens_parciais; // Imagens da astra
 
     // Controle do movimento do motor
     ros::ServiceClient comando_motor;
