@@ -244,11 +244,22 @@
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_inicio">
-            <property name="text">
-             <string>Enviar ao inicio</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_7">
+            <item>
+             <widget class="QPushButton" name="pushButton_inicio">
+              <property name="text">
+               <string>Enviar ao inicio</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QProgressBar" name="progressBar_inicio">
+              <property name="value">
+               <number>0</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -262,7 +273,7 @@
             <item>
              <widget class="QLineEdit" name="lineEdit_viagens">
               <property name="text">
-               <string>4</string>
+               <string>2</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignCenter</set>

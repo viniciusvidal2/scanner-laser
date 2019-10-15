@@ -53,7 +53,7 @@ void Scanner::init(){
 
     // FOV da ASTRA segundo fabricante no sentido PAN
     FOV_astra = 60;
-    overlap = 0; // Overlap entre fotos [DEGREES]
+    overlap   =  0; // Overlap entre fotos [DEGREES]
 
     // Inicia variaveis do motor
     raw_min = 50; raw_max = 3988;
@@ -74,10 +74,8 @@ void Scanner::init(){
     capturar_camera = 0;
 
     // Aloca o ponteiro da nuvem acumulada
-    acc = (PointCloud<PointXYZ>::Ptr) new PointCloud<PointXYZ>();
+    acc = (PointCloud<PointC>::Ptr) new PointCloud<PointC>();
     acc->header.frame_id = "map";
-    acc_cor = (PointCloud<PointXYZRGB>::Ptr) new PointCloud<PointXYZRGB>();
-    acc_cor->header.frame_id = "map";
 
     // Matriz intrinseca da astra, rotação de eixos entre laser e astra e deslocamento no novo eixo
     Eigen::Matrix3f K;
@@ -85,12 +83,9 @@ void Scanner::init(){
                 0,  521.6805,  244.8827,
                 0,         0,    1.0000;
     Eigen::Matrix3f matrix;
-//    matrix = Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitZ()) *
-//             Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitX()) *
-//             Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitZ());
-    matrix = Eigen::AngleAxisf(      0, Eigen::Vector3f::UnitX()) *
-             Eigen::AngleAxisf( M_PI/2, Eigen::Vector3f::UnitY()) *
-             Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitX());
+    matrix = Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitZ()) *
+             Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitX()) *
+             Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitZ());
     Eigen::Matrix4f T_eixos = Eigen::Matrix4f::Identity();
     T_eixos.block<3,3>(0, 0) << matrix;
 //    T_eixos.block<3,1>(0, 3) << 0.004, 0.105, 0; // [m]
@@ -137,12 +132,7 @@ void Scanner::init(){
     ros::Rate rate(2);
     while(ros::ok()){
 
-        // Publicar a nuvem, no final quando a nuvem ficar colorida vai publicar essa nuvem para o usuario
-        if(acc->size() >= acc_cor->size()){
-            toROSMsg(*acc, msg_acc);
-        } else {
-            toROSMsg(*acc_cor, msg_acc);
-        }
+        toROSMsg(*acc, msg_acc);
         msg_acc.header.stamp = ros::Time::now();
         pub_acc.publish(msg_acc);
         // Publicar a tf
@@ -217,7 +207,7 @@ bool Scanner::save_data(){
     if(acc->size() > 10){
         // Salvar a nuvem final de forma correta
         ROS_INFO("Nuvens parciais e final serao processadas e salvas...");
-        saw->process_color_and_save(imagens_parciais, nuvens_parciais, angulos_captura, acc, acc_cor);
+        saw->process_color_and_save(imagens_parciais, nuvens_parciais, angulos_captura, acc);
         // Salvar o arquivo final de angulos para pos processamento
         ROS_INFO("Processadas com sucesso, salvando arquivos de angulos...");
         saw->save_angles_file(inicio_nuvens, final_nuvens, angulos_captura);
@@ -280,19 +270,13 @@ void Scanner::send_to_opposite_edge(int t){
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Scanner::accumulate_parcial_cloud(PointCloud<PointXYZ>::Ptr cloud, double ang_raw){
+void Scanner::accumulate_parcial_cloud(PointCloud<PointC>::Ptr cloud, double ang_raw){
     double theta_y = raw2deg(ang_raw - raw_ref);
 
-//    PointCloud<PointXYZ>::Ptr temp (new PointCloud<PointXYZ>());
     for(size_t i=0; i < angulos_captura.size(); i++){
-        if(theta_y >= inicio_nuvens[i] && theta_y <= final_nuvens[i]){
-//            *temp = nuvens_parciais[i];
-//            *temp += *cloud;
-//            nuvens_parciais[i] = *temp;
+        if(theta_y >= inicio_nuvens[i] && theta_y <= final_nuvens[i])
             nuvens_parciais[i] += *cloud;
-        }
     }
-//    ROS_INFO("Tamanho da nuvem parcial 1 e 2: %zu   %zu", nuvens_parciais[0].size(), nuvens_parciais[1].size());
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f Scanner::transformFromRaw(double raw){
@@ -303,16 +287,16 @@ Eigen::Matrix4f Scanner::transformFromRaw(double raw){
     // Constroi matriz de rotacao
     Eigen::Matrix3f R;
     R = Eigen::AngleAxisf(               0, Eigen::Vector3f::UnitX()) *
-            Eigen::AngleAxisf(DEG2RAD(theta_y), Eigen::Vector3f::UnitY()) *
-            Eigen::AngleAxisf(               0, Eigen::Vector3f::UnitZ());
+        Eigen::AngleAxisf(DEG2RAD(theta_y), Eigen::Vector3f::UnitY()) *
+        Eigen::AngleAxisf(               0, Eigen::Vector3f::UnitZ());
     // Constroi matriz homgenea e retorna
     Eigen::MatrixXf t(3, 1);
     t << 0.0148,
-            0,
-            0;
+              0,
+              0;
     Eigen::Matrix4f T;
     T << R, R*t,
-            0, 0, 0, 1;
+         0, 0, 0, 1;
 
     // Prepara a mensagem atual de tf2 para ser transmitida e enviar
     tf_msg.header.stamp = ros::Time::now();
@@ -358,18 +342,26 @@ void Scanner::callback(const sensor_msgs::LaserScanConstPtr &msg_laser, const na
             comecar = false;
         }
 
-        // Começando, converter leitura para nuvem PCL
+        // Começando, converter leitura para nuvem PCL e adicionar cor branca
         sensor_msgs::PointCloud2 msg_cloud;
         projector.projectLaser(*msg_laser, msg_cloud);
-        PointCloud<PointXYZ>::Ptr cloud (new PointCloud<PointXYZ>());
+        PointCloud<PointXYZ>::Ptr cloud  (new PointCloud<PointXYZ>());
+        PointCloud<PointC>::Ptr   cloudC (new PointCloud<PointC  >());
         fromROSMsg(msg_cloud, *cloud);
+        // Colorir
+        cloudC->resize(cloud->size());
+        # pragma omp parallel for num_threads(10)
+        for(size_t i=0; i < cloudC->size(); i++){
+            cloudC->points[i].x = cloud->points[i].x; cloudC->points[i].y = cloud->points[i].y; cloudC->points[i].z = cloud->points[i].z;
+            cloudC->points[i].r = 250; cloudC->points[i].g = 250; cloudC->points[i].b = 250;
+        }
         // Aplicar transformada de acordo com o angulo
         Eigen::Matrix4f T = transformFromRaw(msg_motor->pose.pose.position.x);
-        transformPointCloud(*cloud, *cloud, T);
+        transformPointCloud(*cloudC, *cloudC, T);
         // Acumular nuvem global - vista no rviz
-        *acc += *cloud;
+        *acc += *cloudC;
         // Acumular nuvem parcial correta
-        accumulate_parcial_cloud(cloud, msg_motor->pose.pose.position.x);
+        accumulate_parcial_cloud(cloudC, msg_motor->pose.pose.position.x);
         // Falar o ponto atual para a progressBar
         new_step();
 
@@ -392,8 +384,8 @@ void Scanner::callback2(const nav_msgs::OdometryConstPtr& msg_motor,
                 imagens_parciais[i] = imptr->image;
 
                 // Absorver nuvens
-                PointCloud<PointXYZRGB>::Ptr nuvem_astra  (new PointCloud<PointXYZRGB>());
-                PointCloud<PointXYZ>::Ptr    nuvem_pixels (new PointCloud<PointXYZ>()   );
+                PointCloud<PointC>::Ptr   nuvem_astra  (new PointCloud<PointC  >());
+                PointCloud<PointXYZ>::Ptr nuvem_pixels (new PointCloud<PointXYZ>());
                 fromROSMsg(*msg_nuvem , *nuvem_astra );
                 fromROSMsg(*msg_pixels, *nuvem_pixels);
 

@@ -60,34 +60,35 @@ void SaveAndWork::save_image_and_clouds_partial(cv::Mat imagem, PointCloud<Point
     savePLYFileASCII(pasta+nome_nuvem_pix, *nuvem_pixels);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void SaveAndWork::process_color_and_save(std::vector<cv::Mat> imagens, std::vector<PointCloud<PointXYZ>> nuvens, std::vector<float> angulos, PointCloud<PointXYZ>::Ptr acumulada_raiz, PointCloud<PointC>::Ptr acumulada_colorida){
+void SaveAndWork::process_color_and_save(std::vector<cv::Mat> imagens, std::vector<PointCloud<PointC>> nuvens, std::vector<float> angulos, PointCloud<PointC>::Ptr acumulada_colorida){
     /// --- Projetar cada nuvem parcial na foto correspondente e colorir todo mundo ali para o resultado final --- ///
     // Cria vetor de nuvens coloridas parciais
     std::vector<PointCloud<PointC>> nuvens_coloridas(nuvens.size());
     // Para cada nuvem
+    PointCloud<PointC>::Ptr color (new PointCloud<PointC>());
     #pragma omp parallel for
-    ROS_INFO("Quantas nuvens coloridas deveriamos ter? %zu   E quantas imagens? %zu", nuvens.size(), imagens.size());
     for(size_t i=0; i < nuvens_coloridas.size(); i++){
         // Obter transformaçao entre camera e laser
-        Eigen::Matrix4f T   = this->calculate_transformation(angulos[i]);
+        Eigen::Matrix4f T = this->calculate_transformation(angulos[i]);
         // Projetar e obter nuvem com cor
-        nuvens_coloridas[i] = this->project_cloud_to_image(nuvens[i], imagens[i], T);
+        *color = nuvens[i];
+        this->project_cloud_to_image(color, imagens[i], T);
+        nuvens[i] = *color;
     }
 
     // Alterar total a nuvem que se ve no programa principal para nuvem colorida sem normais
     acumulada_colorida->clear();
-    for(size_t i=0; i < nuvens_coloridas.size(); i++){
-        *acumulada_colorida += nuvens_coloridas[i];
+    for(size_t i=0; i < nuvens.size(); i++){
+        *acumulada_colorida += nuvens[i];
     }
-    acumulada_raiz->clear(); // Limpa a nuvem sem cor para sinalizar la no principal
 
     // Calcular normais de cada nuvem e salvar
     // Criar nuvem final somando as parciais novamente
     PointCloud<PointT>::Ptr final (new PointCloud<PointT>());
-    PointCloud<PointT>::Ptr temp (new PointCloud<PointT>());
+    PointCloud<PointT>::Ptr temp  (new PointCloud<PointT>());
     #pragma omp parallel for
     for(size_t i=0; i < nuvens.size(); i++){
-        calculate_normals(nuvens_coloridas[i], temp);
+        calculate_normals(nuvens[i], temp);
         *final += *temp;
         savePLYFileASCII(pasta+"parcial_"+std::to_string(i+1)+".ply", *temp);
     }
@@ -185,47 +186,41 @@ Eigen::Matrix4f SaveAndWork::calculate_transformation(float thetay_deg){
     Trot << R, R*t,
             0, 0, 0, 1;
 
-    return Trot.inverse()*T_laser_astra;
+    return Trot*T_laser_astra;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-PointCloud<PointC> SaveAndWork::project_cloud_to_image(PointCloud<PointXYZ> in, cv::Mat img, Eigen::Matrix4f T){
+void SaveAndWork::project_cloud_to_image(PointCloud<PointC>::Ptr in, cv::Mat img, Eigen::Matrix4f T){
     // Matriz de projecao
     Eigen::MatrixXf P(3, 4);
     P = K_astra*T.block<3,4>(0, 0);
-    // Nuvem de saida
-    PointCloud<PointC> saida;
-    ROS_INFO("Nuvem que chegou aqui, tamanho %zu. Dimensoes da imagem: %d  %d", in.size(), img.cols, img.rows);
+
+//    ROS_INFO("Nuvem que chegou aqui, tamanho %zu. Dimensoes da imagem: %d  %d", in.size(), img.cols, img.rows);
     #pragma omp parallel for num_threads(20)
-    for(size_t i=0; i < in.size(); i++){
+    for(size_t i=0; i < in->size(); i++){
         Eigen::MatrixXf X_(4,1);
-        X_ << in.points[i].x, in.points[i].y, in.points[i].z, 1;
+        X_ << in->points[i].x, in->points[i].y, in->points[i].z, 1;
         // Projeta e tira a escala
         Eigen::MatrixXf X = P*X_;
         X = X/X(2,0);
         // Atribui a cor se for possivel
         if(floor(X(0,0)) >= 0 && floor(X(0,0)) < img.cols && floor(X(1,0)) >= 0 && floor(X(1,0)) < img.rows){
-            // Cria ponto, colore e adiciona na nuvem
-            PointC ponto;
-            ponto.b = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[0];
-            ponto.g = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[1];
-            ponto.r = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[2];
-            ponto.x = in.points[i].x; ponto.y = in.points[i].y; ponto.z = in.points[i].z;
-            saida.push_back(ponto);
+            // Colore com a cor correspondente
+            in->points[i].b = img.at<cv::Vec3b>(int(X(1, 0)), int(X(0, 0)))[0];
+            in->points[i].g = img.at<cv::Vec3b>(int(X(1, 0)), int(X(0, 0)))[1];
+            in->points[i].r = img.at<cv::Vec3b>(int(X(1, 0)), int(X(0, 0)))[2];
         } else {
             // Cria ponto preto para mostrar onde nao esta chegando
-            PointC ponto;
-            ponto.b = 0; ponto.r = 0; ponto.g = 0;
-            ponto.x = in.points[i].x; ponto.y = in.points[i].y; ponto.z = in.points[i].z;
-            saida.push_back(ponto);
+            in->points[i].b = 0;
+            in->points[i].g = 0;
+            in->points[i].r = 0;
         }
     }
 
     // Removendo outliers aqui para mostrar melhor no RViz
     pcl::StatisticalOutlierRemoval<PointC> sor;
-    sor.setInputCloud(saida.makeShared());
+    sor.setInputCloud(in);
     sor.setMeanK(1);
-    sor.setStddevMulThresh(1);
-    sor.filter(saida);
+    sor.setStddevMulThresh(0.5);
+    sor.filter(*in);
 
-    return saida;
 }

@@ -67,7 +67,7 @@ public:
    virtual ~SaveAndWork();
    void init();
 
-   void process_color_and_save(std::vector<cv::Mat> imagens, std::vector<PointCloud<PointXYZ>> nuvens, std::vector<float> angulos, PointCloud<PointXYZ>::Ptr acumulada_raiz, PointCloud<PointC>::Ptr acumulada_colorida);
+   void process_color_and_save(std::vector<cv::Mat> imagens, std::vector<PointCloud<PointC>> nuvens, std::vector<float> angulos, PointCloud<PointC>::Ptr acumulada_colorida);
    void save_angles_file(std::vector<float> in, std::vector<float> fn, std::vector<float> ac);
    void save_image_and_clouds_partial(cv::Mat imagem, PointCloud<PointC>::Ptr nuvem_astra, PointCloud<PointXYZ>::Ptr nuvem_pixels, size_t indice);
 
@@ -81,7 +81,7 @@ private:
    void calculate_normals(PointCloud<PointC> entrada, PointCloud<PointT>::Ptr acc_normal);
 
    Eigen::Matrix4f calculate_transformation(float thetay_deg);
-   PointCloud<PointC> project_cloud_to_image(PointCloud<PointXYZ> in, cv::Mat img, Eigen::Matrix4f T);
+   void project_cloud_to_image(PointCloud<PointC>::Ptr in, cv::Mat img, Eigen::Matrix4f T);
 };
 
 #endif // SAVEANDWORK_HPP

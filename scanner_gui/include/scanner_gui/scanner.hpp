@@ -85,6 +85,8 @@ class Scanner : public QThread
 {
     Q_OBJECT
 public:
+    typedef PointXYZRGB PointC;
+
     Scanner(int argc, char** argv, QMutex*);
     virtual ~Scanner();
     void init();
@@ -108,7 +110,6 @@ Q_SIGNALS:
     void new_step();
 
 private:
-
     // Ouve laser e motores, acumula nuvem
     typedef sync_policies::ApproximateTime<sensor_msgs::LaserScan, nav_msgs::Odometry> syncPolicy;
     typedef Synchronizer<syncPolicy> Sync;
@@ -125,7 +126,7 @@ private:
     double deg2raw(double deg);
     double raw2deg(double raw);
     Eigen::Matrix4f transformFromRaw(double raw);
-    void accumulate_parcial_cloud(PointCloud<PointXYZ>::Ptr cloud, double ang_raw);
+    void accumulate_parcial_cloud(PointCloud<PointC>::Ptr cloud, double ang_raw);
     void callback(const sensor_msgs::LaserScanConstPtr& msg_laser,
                   const nav_msgs::OdometryConstPtr& msg_motor);
     void callback2(const nav_msgs::OdometryConstPtr& msg_motor,
@@ -151,7 +152,7 @@ private:
     vector<float> angulos_captura;
     vector<float> final_nuvens;    // [DEGREES]
     vector<float> inicio_nuvens;
-    vector<PointCloud<PointXYZ>> nuvens_parciais; // Nuvens do laser
+    vector<PointCloud<PointC>> nuvens_parciais; // Nuvens do laser
     vector<cv::Mat> imagens_parciais; // Imagens da astra
 
     // Controle do movimento do motor
@@ -168,8 +169,7 @@ private:
     laser_geometry::LaserProjection projector;
 
     // Variaveis de nuvem
-    PointCloud<PointXYZ>::Ptr acc;
-    PointCloud<PointXYZRGB>::Ptr acc_cor;
+    PointCloud<PointC>::Ptr acc;
 
     // Variaveis de tf2 para ver no RViz
     geometry_msgs::TransformStamped tf_msg;
