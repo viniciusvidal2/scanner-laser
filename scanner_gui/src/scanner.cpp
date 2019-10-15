@@ -106,9 +106,10 @@ void Scanner::init(){
     message_filters::Subscriber<sensor_msgs::Image      > img_sub(nh_, "/astra2"         , 100);
     message_filters::Subscriber<sensor_msgs::PointCloud2> ptc_sub(nh_, "/astra_projetada", 100);
     message_filters::Subscriber<sensor_msgs::PointCloud2> pix_sub(nh_, "/pixels"         , 100);
+	message_filters::Subscriber<sensor_msgs::PointCloud2> acc_sub(nh_, "/laser_acumulada", 100);
     sync2.reset(new Sync2(syncPolicy2(100), mot_sub, img_sub, ptc_sub, pix_sub));
     conexao_filter2 = sync2->registerCallback(boost::bind(&Scanner::callback2, this, _1, _2, _3, _4));
-
+	conexao_filter3 = sync2->registerCallback(boost::bind(&Scanner::callback3, this, _1, _2, _3, _4));
     // Inicio do publicador da nuvem acumulada e mensagem ros
     ros::Publisher pub_acc = nh_.advertise<sensor_msgs::PointCloud2>("/laser_acumulada", 100);
     sensor_msgs::PointCloud2 msg_acc;
@@ -394,6 +395,47 @@ void Scanner::callback2(const nav_msgs::OdometryConstPtr& msg_motor,
 
                 // Salvar imagens e nuvens
                 saw->save_image_and_clouds_partial(imptr->image, nuvem_astra, nuvem_pixels, i);
+
+                // Acerta o contador de dados capturados para nao repetir
+                capturar_camera++;
+            } else {
+                capturar_camera = 0;
+            }
+        }
+
+    }
+
+}
+
+// Modificação do callback3 para corrigir distância entre os angulos e tentar implementar o registro entre as nuvens
+// (TODO) Perguntar Vinicius sobre realizar o registro durante o processamento de gravação (salvar nuvem) ou em tempo real.
+void Scanner::callback3(const nav_msgs::OdometryConstPtr& msg_motor,
+                        const sensor_msgs::ImageConstPtr& msg_imagem,
+                        const sensor_msgs::PointCloud2ConstPtr& msg_nuvem,
+                        const sensor_msgs::PointCloud2ConstPtr& msg_acc){
+    // Salvar dados no caso de estarmos na primeira viagem
+    if(viagem_atual == 1){
+
+        // Se estiver proximo a algum dos angulos de captura ligamos
+        for(size_t i=0; i < angulos_captura.size(); i++){
+            //if((abs( raw2deg(msg_motor->pose.pose.position.x) - angulos_captura[i]) < dentro) && capturar_camera == 0){ % acredito que não podemos calcular distancias entre angulos no circulo trigonométrico dessa forma
+			float ang1_rad = raw2deg(msg_motor->pose.pose.position.x)/180.0*PI; % passando os angulos para radiano
+			float ang2_rad = angulos_captura[i]/180.0*PI;					    % passando os angulos para radiano
+			float dist_entre_ang = abs(atan2(sin( ang1_rad - ang2_rad ), cos(ang1_rad - ang2_rad)))*PI/180.0; % calculando a distancia entre angulos no circulo trigonométrico
+			if(dist_entre_ang < dentro && capturar_camera == 0)
+			  // Absorver imagem
+                cv_bridge::CvImagePtr imptr;
+                imptr = cv_bridge::toCvCopy(msg_imagem, sensor_msgs::image_encodings::BGR8);
+                imagens_parciais[i] = imptr->image;
+
+                // Absorver nuvens
+                PointCloud<PointXYZRGB>::Ptr nuvem_astra  (new PointCloud<PointXYZRGB>());
+                PointCloud<PointXYZ>::Ptr    nuvem_acc (new PointCloud<PointXYZ>()   );
+                fromROSMsg(*msg_nuvem , *nuvem_astra );
+                fromROSMsg(*msg_acc, *nuvem_acc);
+
+                // Salvar imagens e nuvens (REGISTRAR ?)
+                //saw->save_image_and_clouds_partial(imptr->image, nuvem_astra, nuvem_acc, i);
 
                 // Acerta o contador de dados capturados para nao repetir
                 capturar_camera++;
