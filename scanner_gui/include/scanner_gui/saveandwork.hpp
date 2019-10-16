@@ -69,7 +69,7 @@ public:
 
    void process_color_and_save(std::vector<cv::Mat> imagens, std::vector<PointCloud<PointC>> nuvens, std::vector<float> angulos, PointCloud<PointC>::Ptr acumulada_colorida);
    void save_angles_file(std::vector<float> in, std::vector<float> fn, std::vector<float> ac);
-   void save_image_and_clouds_partial(cv::Mat imagem, PointCloud<PointC>::Ptr nuvem_astra, PointCloud<PointXYZ>::Ptr nuvem_pixels, size_t indice);
+   void save_image_and_clouds_partial(cv::Mat imagem, cv::Mat imzed, PointCloud<PointC>::Ptr nuvem_astra, PointCloud<PointXYZ>::Ptr nuvem_pixels, size_t indice);
 
 private:
 

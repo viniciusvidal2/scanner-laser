@@ -79,6 +79,7 @@ private Q_SLOTS:
         void on_lineEdit_maxlaser_returnPressed();        
 
         void update_progressBar();
+        void update_progressBar_inicio();
 
         void on_lineEdit_overlap_returnPressed();
 
@@ -123,6 +124,7 @@ private:
         RegistraNuvem rn;
 
         double laser_min, laser_max;
+        int posicao_inicial_raw;
 
 };
 

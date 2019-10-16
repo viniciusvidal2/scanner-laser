@@ -103,10 +103,11 @@ void Scanner::init(){
     // Inicia o subscriber sincronizado para motor e dados da astra - ja pega la o motor_sub
     message_filters::Subscriber<nav_msgs::Odometry      > mot_sub(nh_, "/dynamixel_angulos_sincronizados", 100);
     message_filters::Subscriber<sensor_msgs::Image      > img_sub(nh_, "/astra2"         , 100);
+    message_filters::Subscriber<sensor_msgs::Image      > zed_sub(nh_, "/zed2"           , 100);
     message_filters::Subscriber<sensor_msgs::PointCloud2> ptc_sub(nh_, "/astra_projetada", 100);
     message_filters::Subscriber<sensor_msgs::PointCloud2> pix_sub(nh_, "/pixels"         , 100);
-    sync2.reset(new Sync2(syncPolicy2(100), mot_sub, img_sub, ptc_sub, pix_sub));
-    conexao_filter2 = sync2->registerCallback(boost::bind(&Scanner::callback2, this, _1, _2, _3, _4));
+    sync2.reset(new Sync2(syncPolicy2(100), mot_sub, img_sub, zed_sub, ptc_sub, pix_sub));
+    conexao_filter2 = sync2->registerCallback(boost::bind(&Scanner::callback2, this, _1, _2, _3, _4, _5));
 
     // Inicio do publicador da nuvem acumulada e mensagem ros
     ros::Publisher pub_acc = nh_.advertise<sensor_msgs::PointCloud2>("/laser_acumulada", 100);
@@ -136,7 +137,7 @@ void Scanner::init(){
         msg_acc.header.stamp = ros::Time::now();
         pub_acc.publish(msg_acc);
         // Publicar a tf
-        broadcaster.sendTransform(tf_msg);
+//        broadcaster.sendTransform(tf_msg);
         // Rodar o ros - MUITO IMPORTANTE
         ros::spinOnce();
         // Dormir
@@ -169,7 +170,7 @@ void Scanner::set_course(double min, double max){
             ac  = (ac >= fn) ? (in + fn)/2 : ac;
         }
     }
-//ROS_INFO("Tamanho do vetor de nuvens parciais: %zu", angulos_captura.size());
+
     // Alocar espaco para vetores de dados salvos da astra
     nuvens_parciais.clear() ; nuvens_parciais.resize(angulos_captura.size());
     imagens_parciais.clear(); imagens_parciais.resize(angulos_captura.size());
@@ -246,6 +247,16 @@ void Scanner::send_begin_course(){
     if(comando_motor.call(inicio_curso_cmd))
         ROS_INFO("Enviamos ao inicio de curso, aguarde....");
     comecar = false; // Enquanto nao chegar nao aquisitamos
+
+    ros::Rate r(2);
+    for(long unsigned i=0; i < 1e10; i++){
+        if(abs(raw_atual - inicio_curso) > dentro){
+            going_to_start_point();
+            r.sleep();
+        } else {
+            break;
+        }
+    }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::start_course(){
@@ -370,6 +381,7 @@ void Scanner::callback(const sensor_msgs::LaserScanConstPtr &msg_laser, const na
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Scanner::callback2(const nav_msgs::OdometryConstPtr& msg_motor,
                         const sensor_msgs::ImageConstPtr& msg_imagem,
+                        const sensor_msgs::ImageConstPtr &msg_imagem_zed,
                         const sensor_msgs::PointCloud2ConstPtr& msg_nuvem,
                         const sensor_msgs::PointCloud2ConstPtr& msg_pixels){
     // Salvar dados no caso de estarmos na primeira viagem
@@ -379,8 +391,9 @@ void Scanner::callback2(const nav_msgs::OdometryConstPtr& msg_motor,
         for(size_t i=0; i < angulos_captura.size(); i++){
             if((abs(raw2deg(msg_motor->pose.pose.position.x) - angulos_captura[i]) < dentro) && capturar_camera == 0){
                 // Absorver imagem
-                cv_bridge::CvImagePtr imptr;
-                imptr = cv_bridge::toCvCopy(msg_imagem, sensor_msgs::image_encodings::BGR8);
+                cv_bridge::CvImagePtr imptr, zedptr;
+                imptr  = cv_bridge::toCvCopy(msg_imagem    , sensor_msgs::image_encodings::BGR8);
+                zedptr = cv_bridge::toCvCopy(msg_imagem_zed, sensor_msgs::image_encodings::BGR8);
                 imagens_parciais[i] = imptr->image;
 
                 // Absorver nuvens
@@ -390,7 +403,7 @@ void Scanner::callback2(const nav_msgs::OdometryConstPtr& msg_motor,
                 fromROSMsg(*msg_pixels, *nuvem_pixels);
 
                 // Salvar imagens e nuvens
-                saw->save_image_and_clouds_partial(imptr->image, nuvem_astra, nuvem_pixels, i);
+                saw->save_image_and_clouds_partial(imptr->image, zedptr->image, nuvem_astra, nuvem_pixels, i);
 
                 // Acerta o contador de dados capturados para nao repetir
                 capturar_camera++;

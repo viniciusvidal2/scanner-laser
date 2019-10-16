@@ -44,12 +44,16 @@ void SaveAndWork::init(){
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void SaveAndWork::save_image_and_clouds_partial(cv::Mat imagem, PointCloud<PointC>::Ptr nuvem_astra, PointCloud<PointXYZ>::Ptr nuvem_pixels, size_t indice){
+void SaveAndWork::save_image_and_clouds_partial(cv::Mat imagem, cv::Mat imzed, PointCloud<PointC>::Ptr nuvem_astra, PointCloud<PointXYZ>::Ptr nuvem_pixels, size_t indice){
     // Salvar a imagem na pasta certa
     std::string nome_imagem = "im_astra_"+std::to_string(int(indice))+".jpg";
     std::vector<int> opcoes;
     opcoes.push_back(cv::IMWRITE_JPEG_QUALITY);
     cv::imwrite(pasta+nome_imagem, imagem, opcoes);
+
+    // Salvar a imagem da ZED na pasta certa
+    std::string nome_zed = "im_zed_"+std::to_string(int(indice))+".jpg";
+    cv::imwrite(pasta+nome_zed, imzed, opcoes);
 
     // Salvar a nuvem na pasta certa da astra
     std::string nome_nuvem_ast = "nv_astra_"+std::to_string(int(indice))+".ply";
@@ -194,7 +198,6 @@ void SaveAndWork::project_cloud_to_image(PointCloud<PointC>::Ptr in, cv::Mat img
     Eigen::MatrixXf P(3, 4);
     P = K_astra*T.block<3,4>(0, 0);
 
-//    ROS_INFO("Nuvem que chegou aqui, tamanho %zu. Dimensoes da imagem: %d  %d", in.size(), img.cols, img.rows);
     #pragma omp parallel for num_threads(20)
     for(size_t i=0; i < in->size(); i++){
         Eigen::MatrixXf X_(4,1);
@@ -217,10 +220,10 @@ void SaveAndWork::project_cloud_to_image(PointCloud<PointC>::Ptr in, cv::Mat img
     }
 
     // Removendo outliers aqui para mostrar melhor no RViz
-    pcl::StatisticalOutlierRemoval<PointC> sor;
-    sor.setInputCloud(in);
-    sor.setMeanK(1);
-    sor.setStddevMulThresh(0.5);
-    sor.filter(*in);
+//    pcl::StatisticalOutlierRemoval<PointC> sor;
+//    sor.setInputCloud(in);
+//    sor.setMeanK(1);
+//    sor.setStddevMulThresh(0.5);
+//    sor.filter(*in);
 
 }

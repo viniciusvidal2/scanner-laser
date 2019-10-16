@@ -108,6 +108,7 @@ public:
 
 Q_SIGNALS:
     void new_step();
+    void going_to_start_point();
 
 private:
     // Ouve laser e motores, acumula nuvem
@@ -117,7 +118,7 @@ private:
     message_filters::Connection conexao_filter;
 
     // Ouve motores e astra para capturar imagem e nuvens posicionadas
-    typedef sync_policies::ApproximateTime<nav_msgs::Odometry, sensor_msgs::Image, sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> syncPolicy2;
+    typedef sync_policies::ApproximateTime<nav_msgs::Odometry, sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::PointCloud2, sensor_msgs::PointCloud2> syncPolicy2;
     typedef Synchronizer<syncPolicy2> Sync2;
     boost::shared_ptr<Sync2> sync2;
     message_filters::Connection conexao_filter2;
@@ -131,6 +132,7 @@ private:
                   const nav_msgs::OdometryConstPtr& msg_motor);
     void callback2(const nav_msgs::OdometryConstPtr& msg_motor,
                    const sensor_msgs::ImageConstPtr& msg_imagem,
+                   const sensor_msgs::ImageConstPtr& msg_imagem_zed,
                    const sensor_msgs::PointCloud2ConstPtr& msg_nuvem,
                    const sensor_msgs::PointCloud2ConstPtr& msg_pixels);
 
