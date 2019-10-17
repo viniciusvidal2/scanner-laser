@@ -1,22 +1,42 @@
-
+#include "../include/scanner_gui/registro.hpp"
+#include <QStringListModel>
+#include <QFuture>
+#include <QtConcurrentRun>
 
 
 namespace scanner_gui 
 {
-	
-	
-	void Registro::Registro()
-	{
-		
-		K_astra << 525.1389,    1.4908,  324.1741,
-			0,  521.6805,  244.8827,
-			0,         0,    1.0000;
-		
+	Registro::Registro()
+	{	
+		QFuture<void> future = QtConcurrent::run(this, &Registro::init);
 	}
 	
-	
-	void Registro::run()
+	Registro::~Registro()
 	{
+		if(ros::isStarted()){
+			ros::shutdown();
+			ros::waitForShutdown();
+		}
+		wait();
+	}
+	
+	void Registro::init()
+	{
+		K_astra << 525.1389,    1.4908,  324.1741,
+			         0,       521.6805,  244.8827,
+			         0,           0   ,    1.0000;
+			
+		K_zed << 0,  0,  0,
+				 0,  0,  0,
+				 0,  0,  0;
+	}
+	
+	void Registro::run(std::vector<cv::Mat> imagens_zed, std::vector<cv::Mat> imagens_astra, 
+			           std::vector<PointCloud<PointXYZ>> nuvens_astra, std::vector<PointCloud<PointXYZ>> nuvens_laser,
+					   std::vector<float> angulos_captura)
+	{
+		PointCloud<PointXYZ> nuvem_i;
+		
 		for (size_t i = 0; i < angulos_captura.size(); i++)
 		{
 			
@@ -32,25 +52,25 @@ namespace scanner_gui
 			Eigen::Matrix4f T_comb = T1.inverse()*T2;
 			
 		// Refinando a transformada utilizando ICP
-			Eigen::Matrix4f T_icp = this->icp(nuvem_laser[i], nuvem_astra[i], T_comb);
+			Eigen::Matrix4f T_icp = this->icp(&nuvem_laser[i], &nuvem_astra[i], T_comb);
 			
 		// Projetando nuvem nas imagens correspondentes para adquirir cor (usando imagem da ASTRA)	
-			PointCloud<PointXYZRGB>  nuvem_i[i] = projetar_3d_2_2d(nuvem_in, img, K_astra, T_icp);
+			PointCloud<PointXYZRGB>  nuvem_i = this->projetar_3d_2_2d(nuvem_laser[i], img_astra, K_astra, T_icp);
 			
 		// Projetando nuvem nas imagens correspondentes para adquirir cor (usando imagem da ZED -  sem otimização)	
-			//PointCloud<PointXYZRGB>  nuvem_i[i] = projetar_3d_2_2d(nuvem_in, img, K_astra, T_zed);
+			//PointCloud<PointXYZRGB>  nuvem_i = projetar_3d_2_2d(nuvem_laser[i], img_zed, K_zed, T_zed);
 		
-		// Projetando nuvem nas imagens correspondentes para adquirir cor (usando imagem da ZEC com otimização por BAT)	
-			//PointCloud<PointXYZRGB>  nuvem_i[i] = projetar_3d_2_2d(nuvem_in, img, K_astra, T_zed_opt);
+		// Projetando nuvem nas imagens correspondentes para adquirir cor (usando imagem da ZED com otimização por BAT)	
+			// (TODO) PointCloud<PointXYZRGB>  nuvem_i = projetar_3d_2_2d(nuvem_laser[i], img_zed, K_zed, T_zed_opt);
 
 		// Acumulando nuvem
-			acc = acc + nuvem_i[i];
-			
-		// Salvando nuvem parcial
+			*acc_cor = *acc_cor + nuvem_i; // Nuvem acumulada com cor
+			*acc = *acc + nuvem_laser[i]; // Nuvem acumulada sem cor
 			
 		}
 		
-		// Salvando nuvem acumulada
+		// Salvando nuvens parciais e nuvem acumulada
+		saw->process_color_and_save(imagens_zed, nuvens_laser, angulos_captura, acc, acc_cor);
 		
     }
 					
@@ -81,38 +101,40 @@ namespace scanner_gui
 				 Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitZ());
 		Eigen::Matrix4f T_laser2astra = Eigen::Matrix4f::Identity();
 		T_laser2astra.block<3,3>(0, 0) << matrix;
-		
+		T_laser2astra.block<3,1>(0, 3) << 0.004, 0.105, 0; 
 		return T_laser2astra;
 	}
 	
 	
-PointCloud<PointXYZRGB> Registro::projetar_3d_2_2d(PointCloud<PointXYZ> nuvem_in, cv::Mat img, Eigen::Matrix3f K, Eigen::Matrix4f T){ // adaptado de saveandwork
-    // Matriz de projecao
-    Eigen::MatrixXf P(3, 4);
-    P = K*T.block<3,4>(0, 0);
-    // Nuvem de saida
-    PointCloud<PointXYZRGB> nuvem_out;
-    ROS_INFO("Nuvem que chegou aqui, tamanho %zu. Dimensoes da imagem: %d  %d", nuvem_in.size(), img.cols, img.rows);
-    #pragma omp parallel for num_threads(20)
-    for(size_t i=0; i < nuvem_in.size(); i++){
-        Eigen::MatrixXf X_(4,1);
-        X_ << nuvem_in.points[i].x, nuvem_in.points[i].y, nuvem_in.points[i].z, 1;
-        // Projeta e tira a escala
-        Eigen::MatrixXf X = P*X_;
-        X = X/X(2,0);
-        // Atribui a cor se for possivel
-        if(floor(X(0,0)) >= 0 && floor(X(0,0)) < img.cols && floor(X(1,0)) >= 0 && floor(X(1,0)) < img.rows){
-            // Cria ponto, colore e adiciona na nuvem
-            PointXYZRGB ponto;
-            ponto.b = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[2];
-            ponto.g = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[1];
-            ponto.r = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[0];
-            ponto.x = nuvem_in.points[i].x; ponto.y = nuvem_in.points[i].y; ponto.z = nuvem_in.points[i].z;
-            nuvem_out.push_back(ponto);
-        }
-    }
+	PointCloud<PointXYZRGB> Registro::projetar_3d_2_2d(PointCloud<PointXYZ> nuvem_in, cv::Mat img, 
+													   Eigen::Matrix3f K, Eigen::Matrix4f T) // adaptado de saveandwork
+    { 
+		// Matriz de projecao
+		Eigen::MatrixXf P(3, 4);
+		P = K*T.block<3,4>(0, 0);
+		// Nuvem de saida
+		PointCloud<PointXYZRGB> nuvem_out;
+		ROS_INFO("Nuvem que chegou aqui, tamanho %zu. Dimensoes da imagem: %d  %d", nuvem_in.size(), img.cols, img.rows);
+		#pragma omp parallel for num_threads(20)
+		for(size_t i=0; i < nuvem_in.size(); i++){
+			Eigen::MatrixXf X_(4,1);
+			X_ << nuvem_in.points[i].x, nuvem_in.points[i].y, nuvem_in.points[i].z, 1;
+			// Projeta e tira a escala
+			Eigen::MatrixXf X = P*X_;
+			X = X/X(2,0);
+			// Atribui a cor se for possivel
+			if(floor(X(0,0)) >= 0 && floor(X(0,0)) < img.cols && floor(X(1,0)) >= 0 && floor(X(1,0)) < img.rows){
+				// Cria ponto, colore e adiciona na nuvem
+				PointXYZRGB ponto;
+				ponto.b = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[2];
+				ponto.g = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[1];
+				ponto.r = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[0];
+				ponto.x = nuvem_in.points[i].x; ponto.y = nuvem_in.points[i].y; ponto.z = nuvem_in.points[i].z;
+				nuvem_out.push_back(ponto);
+			}
+		}
 
-    return nuvem_out;
+		return nuvem_out;
 }
 	
 	
