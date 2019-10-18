@@ -24,11 +24,45 @@ void Registro::init()
                          0,       521.6805,  244.8827,
                          0,           0   ,    1.0000;
 
-        K_zed << 0,  0,  0,
+        K_zed <<         0,  0,  0,      // (TODO) Colocar matriz correta de calibracao
                          0,  0,  0,
                          0,  0,  0;
-        profundidade_icp = 1;
+
+        profundidade_icp = 1;           // (TODO) Colocar profundidade_icp correto
 }
+
+
+void Registro::process(std::string directory, std::string ext)
+{
+//     Contando o numero de imagens em um determinado diretorio
+//    int cnt_img = count_files("directory" , "ext")/2;
+    int cnt_img = 5;
+    std::vector<cv::Mat> imagens_zed;
+    std::vector<cv::Mat> imagens_astra;
+    std::vector<PointCloud<PointXYZ>> nuvens_astra;
+    std::vector<PointCloud<PointXYZ>> nuvens_laser;
+    std::vector<float> angulos_captura;
+
+    for(int i = 0; i < cnt_img; i++)
+    {
+        std::cout << directory + "im_zed_" + std::to_string(i) + "." + ext + "\n";
+        std::cout << directory + "im_astra_" + std::to_string(i) + "." + ext + "\n";
+        imagens_zed[i] = imread(directory + "im_zed_" + std::to_string(i) + "." + ext, CV_LOAD_IMAGE_COLOR);
+        imagens_astra[i] = imread(directory + "im_astra_" + std::to_string(i) + "." + ext, CV_LOAD_IMAGE_COLOR);
+//        imshow("Image", imagens_zed[i]);
+//        cvWaitKey(10);
+        loadPLYFile(directory + "nv_astra_" + std::to_string(i) + ".ply", nuvens_astra[i]);
+        loadPLYFile(directory + "parcial_" + std::to_string(i+1) + ".ply", nuvens_laser[i]);
+        //nuvens_astra[i] =;
+        //nuvens_laser[i] =;
+        //angulos_captura[i] =;
+    }
+
+    // Projetando
+    run(imagens_zed, imagens_astra, nuvens_astra, nuvens_laser, angulos_captura);
+
+}
+
 
 void Registro::run(std::vector<cv::Mat> imagens_zed, std::vector<cv::Mat> imagens_astra,
                            std::vector<PointCloud<PointXYZ>> nuvens_astra, std::vector<PointCloud<PointXYZ>> nuvens_laser,
@@ -42,32 +76,37 @@ void Registro::run(std::vector<cv::Mat> imagens_zed, std::vector<cv::Mat> imagen
         // Passar nuvem_laser para coordenadas da câmera Astra (RGB-D)
 
                 // Transformação: Laser Rotacionado -> Laser Inicial
-                Eigen::Matrix4f T1 = this->transformada_laser_rot(angulos_captura[i]);
+                Eigen::Matrix4f T1 = transformada_laser_rot(angulos_captura[i]);
 
                 // Transformação: Laser -> Astra
-                Eigen::Matrix4f T2 = this->transformada_laser2astra();
+                Eigen::Matrix4f T2 = transformada_laser2astra();
+
+                // Transformação: Astra -> ZED
+                Eigen::Matrix4f T3 = transformada_astra2zed();
 
                 // Transformação Combinada
                 Eigen::Matrix4f T_comb = T1.inverse()*T2;
 
         // Refinando a transformada utilizando ICP
-                PointCloud<PointT>::Ptr a (new PointCloud<PointT>());
-                PointCloud<PointT>::Ptr b (new PointCloud<PointT>());
+                PointCloud<PointT>::Ptr nuvens_laser_tmp (new PointCloud<PointT>());
+                PointCloud<PointT>::Ptr nuvens_astra_tmp (new PointCloud<PointT>());
                 //*a = nuvens_laser[i];
                 //*b = nuvens_astra[i];
-                copyPointCloud(nuvens_laser[i], *a);
-                copyPointCloud(nuvens_astra[i], *b);
-                Eigen::Matrix4f T_icp = icp(a, b, T_comb);
+                copyPointCloud(nuvens_laser[i], *nuvens_laser_tmp);
+                copyPointCloud(nuvens_astra[i], *nuvens_astra_tmp);
+                Eigen::Matrix4f T_icp = icp(nuvens_laser_tmp, nuvens_astra_tmp, T_comb);
                 //Eigen::Matrix4f T_icp = T_comb;
 
         // Projetando nuvem nas imagens correspondentes para adquirir cor (usando imagem da ASTRA)
-                PointCloud<PointXYZRGB>  nuvem_i = this->projetar_3d_2_2d(nuvens_laser[i], imagens_astra[i], K_astra, T_icp);
+                PointCloud<PointXYZRGB>  nuvem_i = projetar_3d_2_2d(nuvens_laser[i], imagens_astra[i], K_astra, T_icp);
 
         // Projetando nuvem nas imagens correspondentes para adquirir cor (usando imagem da ZED -  sem otimização)
-                //PointCloud<PointXYZRGB>  nuvem_i = projetar_3d_2_2d(nuvem_laser[i], img_zed, K_zed, T_zed);
+                // Eigen::Matrix4f T_zed = T_comb * T3;
+                // Eigen::Matrix4f T_zed = T_icp * T3;
+                // PointCloud<PointXYZRGB>  nuvem_i = projetar_3d_2_2d(nuvens_laser[i], imagens_zed[i], K_zed, T_zed);
 
         // Projetando nuvem nas imagens correspondentes para adquirir cor (usando imagem da ZED com otimização por BAT)
-                // (TODO) PointCloud<PointXYZRGB>  nuvem_i = projetar_3d_2_2d(nuvem_laser[i], img_zed, K_zed, T_zed_opt);
+                // (TODO) PointCloud<PointXYZRGB>  nuvem_i = projetar_3d_2_2d(nuvens_laser[i], imagens_zed[i], K_zed, T_zed_opt);
 
         // Acumulando nuvem
                 *acc_cor = *acc_cor + nuvem_i; // Nuvem acumulada com cor
@@ -109,6 +148,33 @@ Eigen::Matrix4f Registro::transformada_laser2astra() // adaptado de 'projetalase
         T_laser2astra.block<3,3>(0, 0) << matrix;
         T_laser2astra.block<3,1>(0, 3) << 0.004, 0.105, 0;
         return T_laser2astra;
+}
+
+Eigen::Matrix4f Registro::transformada_astra2zed()
+{
+        Eigen::Matrix4f T_astra2zed;
+        T_astra2zed << 1, 0, 0,  0.052,
+                       0, 1, 0,  0.01 ,
+                       0, 0, 1, -0.01 ,
+                       0, 0, 0,   1   ;
+        return T_astra2zed;
+}
+
+
+
+
+int count_files(std::string directory, std::string ext) //  Funcao para contar o numero de arquivos de uma determinada extensao (ext) em um determinado diretorio (directory)
+{
+        namespace fs = boost::filesystem;
+        fs::path Path(directory);
+        int Nb_ext = 0;
+        fs::directory_iterator end_iter;
+
+        for (fs::directory_iterator iter(Path); iter != end_iter; ++iter)
+                if (iter->path().extension() == ext)
+                        ++Nb_ext;
+
+        return Nb_ext;
 }
 
 

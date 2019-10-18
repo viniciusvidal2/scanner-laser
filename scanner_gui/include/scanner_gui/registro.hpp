@@ -70,7 +70,7 @@
 using namespace pcl;
 using namespace pcl::io;
 using namespace std;
-
+using namespace cv;
 
 class Registro : public QObject
 {
@@ -82,6 +82,7 @@ public:
    void run(std::vector<cv::Mat> imagens_zed, std::vector<cv::Mat> imagens_astra,
 			           std::vector<PointCloud<PointXYZ>> nuvens_astra, std::vector<PointCloud<PointXYZ>> nuvens_laser,
 					   std::vector<float> angulos_captura);
+   void process(std::string directory, std::string ext);
 					   					   
 private:
         // typedef
@@ -96,9 +97,11 @@ private:
 	SaveAndWork* saw; // Objeto utilizado para salvar point clouds em formato .ply
         double profundidade_icp;
    
-    // Funções
+    // Funções privadas
+        int count_files(std::string directory, std::string ext);
         Eigen::Matrix4f transformada_laser_rot(float theta); // Função que gera a matriz de rotação referente a um ângulo THETA
         Eigen::Matrix4f transformada_laser2astra(); // Função que retorna a matriz de transformação entre o LASER e a câmera ASTRA ...
+        Eigen::Matrix4f transformada_astra2zed(); // Funcao que retorna a matriz de transformacao entre a camera ASTRA e a camera ZED
         PointCloud<PointXYZRGB> projetar_3d_2_2d(PointCloud<PointXYZ> nuvem_in,   // Gera uma point cloud colorida projetando uma nuvem NUVEM_IN ...
                                                            cv::Mat img, Eigen::Matrix3f K,  // para uma imagem IMG utilizando uma matriz de calibração K ...
                                                            Eigen::Matrix4f T);              // e uma matriz de transformação T.
