@@ -224,7 +224,7 @@ void OtimizaCameraImagens::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, 
                 float dx2 = (pixeis->points[j].x - goodKeypointsLeft[i].pt.x)*(pixeis->points[j].x - goodKeypointsLeft[i].pt.x);
                 float dy2 = (pixeis->points[j].y - goodKeypointsLeft[i].pt.y)*(pixeis->points[j].y - goodKeypointsLeft[i].pt.y);
 
-                if(sqrt(dx2) < lim_coord && sq	````````````````rt(dy2) < lim_coord && sqrt(dx2+dy2) < melhores_distancias[i]){
+                if(sqrt(dx2) < lim_coord && sqrt(dy2) < lim_coord && sqrt(dx2+dy2) < melhores_distancias[i]){
                     melhores_distancias[i] = sqrt(dx2+dy2);
                     indices_nuvem[i] = j;
                 }

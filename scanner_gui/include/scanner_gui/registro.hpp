@@ -15,6 +15,19 @@
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/surface/mls.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+#include <pcl/registration/icp.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl_ros/transforms.h>
+#include <pcl/filters/conditional_removal.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/registration/correspondence_rejection_median_distance.h>
+#include <pcl/registration/correspondence_rejection_sample_consensus.h>
+#include <pcl_ros/transforms.h>
+#include <pcl/filters/conditional_removal.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -66,11 +79,10 @@ public:
    Registro();
    virtual ~Registro();
    void init();
-   void Registro::run(std::vector<cv::Mat> imagens_zed, std::vector<cv::Mat> imagens_astra, 
+   void run(std::vector<cv::Mat> imagens_zed, std::vector<cv::Mat> imagens_astra,
 			           std::vector<PointCloud<PointXYZ>> nuvens_astra, std::vector<PointCloud<PointXYZ>> nuvens_laser,
 					   std::vector<float> angulos_captura);
-					   
-					   
+					   					   
 private:
 	// Variáveis
 	Eigen::Matrix3f K_astra; // Matriz de calibração da câmera ASTRA
@@ -78,19 +90,20 @@ private:
 	PointCloud<PointXYZ>::Ptr acc; // Ponteiro que faz referência a point cloud acumulada do LASER
 	PointCloud<PointXYZRGB>::Ptr acc_cor; // Ponteiro que faz referência a point cloud acumulada colorida do LASER 
 	SaveAndWork* saw; // Objeto utilizado para salvar point clouds em formato .ply
-   
+        double profundidade_icp;
    
     // Funções
-	Eigen::Matrix4f Registro::transformada_laser_rot(float theta); // Função que gera a matriz de rotação referente a um ângulo THETA
-	Eigen::Matrix4f Registro::transformada_laser2astra(); // Função que retorna a matriz de transformação entre o LASER e a câmera ASTRA ...
-	PointCloud<PointXYZRGB> Registro::projetar_3d_2_2d(PointCloud<PointXYZ> nuvem_in,   // Gera uma point cloud colorida projetando uma nuvem NUVEM_IN ...
-													   cv::Mat img, Eigen::Matrix3f K,  // para uma imagem IMG utilizando uma matriz de calibração K ...
-													   Eigen::Matrix4f T);              // e uma matriz de transformação T.
- 	Eigen::Matrix4f Registro::icp(const PointCloud<PointT>::Ptr src,  // Aplica a técnica ICP entre uma nuvem SRC e uma nuvem TGT ...
-                                   const PointCloud<PointT>::Ptr tgt, // com um chute inicial de transformação T. Retorna a transformação T_icp.
-                                   Eigen::Matrix4f T);
-								   
-
+        Eigen::Matrix4f transformada_laser_rot(float theta); // Função que gera a matriz de rotação referente a um ângulo THETA
+        Eigen::Matrix4f transformada_laser2astra(); // Função que retorna a matriz de transformação entre o LASER e a câmera ASTRA ...
+        PointCloud<PointXYZRGB> projetar_3d_2_2d(PointCloud<PointXYZ> nuvem_in,   // Gera uma point cloud colorida projetando uma nuvem NUVEM_IN ...
+                                                           cv::Mat img, Eigen::Matrix3f K,  // para uma imagem IMG utilizando uma matriz de calibração K ...
+                                                           Eigen::Matrix4f T);              // e uma matriz de transformação T.
+        void filter_grid(PointCloud<PointNormal>::Ptr cloud, float leaf_size);                            // Filtragem (funcao 1)
+        void filter_grid(PointCloud<PointNormal>::Ptr in, PointCloud<PointNormal>::Ptr out, float leaf_size);  // Filtragem (funcao 2)
+        void filter_grid(PointCloud<PointXYZRGBNormal>::Ptr in, PointCloud<PointXYZRGBNormal>::Ptr out, float leaf_size);  // Filtragem (funcao 3)
+        Eigen::Matrix4f icp(const PointCloud<PointNormal>::Ptr src,  // Aplica a técnica ICP entre uma nuvem SRC e uma nuvem TGT ...
+                                      const PointCloud<PointNormal>::Ptr tgt, // com um chute inicial de transformação T. Retorna a transformação T_icp.
+                                      Eigen::Matrix4f T);
 };
 
 #endif 

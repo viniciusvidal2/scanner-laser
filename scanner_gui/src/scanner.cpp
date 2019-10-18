@@ -109,7 +109,7 @@ void Scanner::init(){
 	message_filters::Subscriber<sensor_msgs::PointCloud2> acc_sub(nh_, "/laser_acumulada", 100);
     sync2.reset(new Sync2(syncPolicy2(100), mot_sub, img_sub, ptc_sub, pix_sub));
     conexao_filter2 = sync2->registerCallback(boost::bind(&Scanner::callback2, this, _1, _2, _3, _4));
-	conexao_filter3 = sync2->registerCallback(boost::bind(&Scanner::callback3, this, _1, _2, _3, _4));
+//	conexao_filter3 = sync2->registerCallback(boost::bind(&Scanner::callback3, this, _1, _2, _3, _4));
     // Inicio do publicador da nuvem acumulada e mensagem ros
     ros::Publisher pub_acc = nh_.advertise<sensor_msgs::PointCloud2>("/laser_acumulada", 100);
     sensor_msgs::PointCloud2 msg_acc;
@@ -409,7 +409,7 @@ void Scanner::callback2(const nav_msgs::OdometryConstPtr& msg_motor,
 
 // Modificação do callback3 para corrigir distância entre os angulos e tentar implementar o registro entre as nuvens
 // (TODO) Perguntar Vinicius sobre realizar o registro durante o processamento de gravação (salvar nuvem) ou em tempo real.
-void Scanner::callback3(const nav_msgs::OdometryConstPtr& msg_motor,
+/*void Scanner::callback3(const nav_msgs::OdometryConstPtr& msg_motor,
                         const sensor_msgs::ImageConstPtr& msg_imagem,
                         const sensor_msgs::PointCloud2ConstPtr& msg_nuvem,
                         const sensor_msgs::PointCloud2ConstPtr& msg_acc){
@@ -447,5 +447,6 @@ void Scanner::callback3(const nav_msgs::OdometryConstPtr& msg_motor,
     }
 
 }
+*/
 ///////////////////////////////////////////////////////////////////////////////////////////
 } // Fim do namespace
