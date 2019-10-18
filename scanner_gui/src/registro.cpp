@@ -59,12 +59,12 @@ void Registro::process(std::string directory, std::string ext)
     }
 
     // Projetando
-    run(imagens_zed, imagens_astra, nuvens_astra, nuvens_laser, angulos_captura);
+    run_registro(imagens_zed, imagens_astra, nuvens_astra, nuvens_laser, angulos_captura);
 
 }
 
 
-void Registro::run(std::vector<cv::Mat> imagens_zed, std::vector<cv::Mat> imagens_astra,
+void Registro::run_registro(std::vector<cv::Mat> imagens_zed, std::vector<cv::Mat> imagens_astra,
                            std::vector<PointCloud<PointXYZ>> nuvens_astra, std::vector<PointCloud<PointXYZ>> nuvens_laser,
                                    std::vector<float> angulos_captura)
 {
@@ -224,9 +224,9 @@ PointCloud<PointXYZRGB> Registro::projetar_3d_2_2d(PointCloud<PointXYZ> nuvem_in
                 if(floor(X(0,0)) >= 0 && floor(X(0,0)) < img.cols && floor(X(1,0)) >= 0 && floor(X(1,0)) < img.rows){
                         // Cria ponto, colore e adiciona na nuvem
                         PointXYZRGB ponto;
-                        ponto.b = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[2];
-                        ponto.g = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[1];
-                        ponto.r = img.at<cv::Vec3b>(int(X(0, 0)), int(X(1, 0)))[0];
+                        ponto.b = img.at<cv::Vec3b>(int(X(1, 0)), int(X(0, 0)))[2];
+                        ponto.g = img.at<cv::Vec3b>(int(X(1, 0)), int(X(0, 0)))[1];
+                        ponto.r = img.at<cv::Vec3b>(int(X(1, 0)), int(X(0, 0)))[0];
                         ponto.x = nuvem_in.points[i].x; ponto.y = nuvem_in.points[i].y; ponto.z = nuvem_in.points[i].z;
                         nuvem_out.push_back(ponto);
                 }

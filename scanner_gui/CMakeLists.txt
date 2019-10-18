@@ -57,3 +57,7 @@ add_executable(scanner_gui ${QT_SOURCES} ${QT_RESOURCES_CPP} ${QT_FORMS_HPP} ${Q
 target_link_libraries(scanner_gui ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 install(TARGETS scanner_gui RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
+## No teste_felipe
+add_executable(teste_felipe src2/teste_felipe.cpp)
+target_link_libraries(teste_felipe ${QT_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+

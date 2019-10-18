@@ -79,7 +79,7 @@ public:
    Registro();
    virtual ~Registro();
    void init();
-   void run(std::vector<cv::Mat> imagens_zed, std::vector<cv::Mat> imagens_astra,
+   void run_registro(std::vector<cv::Mat> imagens_zed, std::vector<cv::Mat> imagens_astra,
 			           std::vector<PointCloud<PointXYZ>> nuvens_astra, std::vector<PointCloud<PointXYZ>> nuvens_laser,
 					   std::vector<float> angulos_captura);
    void process(std::string directory, std::string ext);
