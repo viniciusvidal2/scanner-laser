@@ -51,8 +51,14 @@ void Registro::run(std::vector<cv::Mat> imagens_zed, std::vector<cv::Mat> imagen
                 Eigen::Matrix4f T_comb = T1.inverse()*T2;
 
         // Refinando a transformada utilizando ICP
-                //Eigen::Matrix4f T_icp = this->icp(&nuvens_laser[i], &nuvens_astra[i], T_comb);
-                Eigen::Matrix4f T_icp = T_comb;
+                PointCloud<PointT>::Ptr a (new PointCloud<PointT>());
+                PointCloud<PointT>::Ptr b (new PointCloud<PointT>());
+                //*a = nuvens_laser[i];
+                //*b = nuvens_astra[i];
+                copyPointCloud(nuvens_laser[i], *a);
+                copyPointCloud(nuvens_astra[i], *b);
+                Eigen::Matrix4f T_icp = icp(a, b, T_comb);
+                //Eigen::Matrix4f T_icp = T_comb;
 
         // Projetando nuvem nas imagens correspondentes para adquirir cor (usando imagem da ASTRA)
                 PointCloud<PointXYZRGB>  nuvem_i = this->projetar_3d_2_2d(nuvens_laser[i], imagens_astra[i], K_astra, T_icp);
@@ -138,14 +144,14 @@ PointCloud<PointXYZRGB> Registro::projetar_3d_2_2d(PointCloud<PointXYZ> nuvem_in
 }
 
 
-Eigen::Matrix4f Registro::icp(const PointCloud<PointNormal>::Ptr src, // tirado de registra_nuvem.cpp
-                           const PointCloud<PointNormal>::Ptr tgt,
+Eigen::Matrix4f Registro::icp(const PointCloud<PointT>::Ptr src, // tirado de registra_nuvem.cpp
+                           const PointCloud<PointT>::Ptr tgt,
                            Eigen::Matrix4f T)
 {
         //ROS_INFO("Entrando no ICP");
         // Reduzindo complexidade das nuvens
-        PointCloud<PointNormal>::Ptr temp_src (new PointCloud<PointNormal>());
-        PointCloud<PointNormal>::Ptr temp_tgt (new PointCloud<PointNormal>());
+        PointCloud<PointT>::Ptr temp_src (new PointCloud<PointT>());
+        PointCloud<PointT>::Ptr temp_tgt (new PointCloud<PointT>());
 
         *temp_src = *src; *temp_tgt = *tgt;
 
@@ -162,11 +168,11 @@ Eigen::Matrix4f Registro::icp(const PointCloud<PointNormal>::Ptr src, // tirado 
 
         /// ICP COMUM ///
         // Criando o otimizador de ICP comum
-        pcl::IterativeClosestPoint<PointNormal, PointNormal> icp;
+        pcl::IterativeClosestPoint<PointT, PointT> icp;
         pcl::registration::CorrespondenceRejectorMedianDistance::Ptr rej_med (new pcl::registration::CorrespondenceRejectorMedianDistance);
         rej_med->setMedianFactor (3.0);
         icp.addCorrespondenceRejector (rej_med);
-        pcl::registration::CorrespondenceRejectorSampleConsensus<PointNormal>::Ptr rej_samp (new pcl::registration::CorrespondenceRejectorSampleConsensus<PointNormal>);
+        pcl::registration::CorrespondenceRejectorSampleConsensus<PointT>::Ptr rej_samp (new pcl::registration::CorrespondenceRejectorSampleConsensus<PointT>);
         icp.addCorrespondenceRejector (rej_samp);
         icp.setUseReciprocalCorrespondences(true);
         icp.setInputTarget(temp_tgt);
@@ -177,7 +183,7 @@ Eigen::Matrix4f Registro::icp(const PointCloud<PointNormal>::Ptr src, // tirado 
         icp.setMaxCorrespondenceDistance(0.06);
 
         #pragma omp parallel
-        PointCloud<PointNormal> final2;
+        PointCloud<PointT> final2;
         icp.align(final2, T);
 
         if(icp.hasConverged())
@@ -190,25 +196,25 @@ Eigen::Matrix4f Registro::icp(const PointCloud<PointNormal>::Ptr src, // tirado 
         return T_icp;
 }
 
-void Registro::filter_grid(PointCloud<PointNormal>::Ptr cloud, float leaf_size)
+void Registro::filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size)
 {
-    VoxelGrid<PointNormal> grid;
+    VoxelGrid<PointT> grid;
     grid.setLeafSize(leaf_size, leaf_size, leaf_size);
     grid.setInputCloud(cloud);
     grid.filter(*cloud);
 }
 
-void Registro::filter_grid(PointCloud<PointNormal>::Ptr in, PointCloud<PointNormal>::Ptr out, float leaf_size)
+void Registro::filter_grid(PointCloud<PointT>::Ptr in, PointCloud<PointT>::Ptr out, float leaf_size)
 {
-    VoxelGrid<PointNormal> grid;
+    VoxelGrid<PointT> grid;
     grid.setLeafSize(leaf_size, leaf_size, leaf_size);
     grid.setInputCloud(in);
     grid.filter(*out);
 }
 
-void Registro::filter_grid(PointCloud<PointXYZRGBNormal>::Ptr in, PointCloud<PointXYZRGBNormal>::Ptr out, float leaf_size)
+void Registro::filter_grid(PointCloud<PointF>::Ptr in, PointCloud<PointF>::Ptr out, float leaf_size)
 {
-    VoxelGrid<PointXYZRGBNormal> grid;
+    VoxelGrid<PointF> grid;
     grid.setLeafSize(leaf_size, leaf_size, leaf_size);
     grid.setInputCloud(in);
     grid.filter(*out);

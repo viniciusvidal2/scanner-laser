@@ -84,6 +84,10 @@ public:
 					   std::vector<float> angulos_captura);
 					   					   
 private:
+        // typedef
+        typedef PointNormal PointT;
+        typedef PointXYZRGBNormal PointF;
+
 	// Variáveis
 	Eigen::Matrix3f K_astra; // Matriz de calibração da câmera ASTRA
 	Eigen::Matrix3f K_zed; // Matriz de calibração da câmera ZED
@@ -98,11 +102,11 @@ private:
         PointCloud<PointXYZRGB> projetar_3d_2_2d(PointCloud<PointXYZ> nuvem_in,   // Gera uma point cloud colorida projetando uma nuvem NUVEM_IN ...
                                                            cv::Mat img, Eigen::Matrix3f K,  // para uma imagem IMG utilizando uma matriz de calibração K ...
                                                            Eigen::Matrix4f T);              // e uma matriz de transformação T.
-        void filter_grid(PointCloud<PointNormal>::Ptr cloud, float leaf_size);                            // Filtragem (funcao 1)
-        void filter_grid(PointCloud<PointNormal>::Ptr in, PointCloud<PointNormal>::Ptr out, float leaf_size);  // Filtragem (funcao 2)
-        void filter_grid(PointCloud<PointXYZRGBNormal>::Ptr in, PointCloud<PointXYZRGBNormal>::Ptr out, float leaf_size);  // Filtragem (funcao 3)
-        Eigen::Matrix4f icp(const PointCloud<PointNormal>::Ptr src,  // Aplica a técnica ICP entre uma nuvem SRC e uma nuvem TGT ...
-                                      const PointCloud<PointNormal>::Ptr tgt, // com um chute inicial de transformação T. Retorna a transformação T_icp.
+        void filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size);                            // Filtragem (funcao 1)
+        void filter_grid(PointCloud<PointT>::Ptr in, PointCloud<PointT>::Ptr out, float leaf_size);  // Filtragem (funcao 2)
+        void filter_grid(PointCloud<PointF>::Ptr in, PointCloud<PointF>::Ptr out, float leaf_size);  // Filtragem (funcao 3)
+        Eigen::Matrix4f icp(const PointCloud<PointT>::Ptr src,  // Aplica a técnica ICP entre uma nuvem SRC e uma nuvem TGT ...
+                                      const PointCloud<PointT>::Ptr tgt, // com um chute inicial de transformação T. Retorna a transformação T_icp.
                                       Eigen::Matrix4f T);
 };
 
