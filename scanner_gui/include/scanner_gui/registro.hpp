@@ -99,6 +99,7 @@ private:
    
     // Funções privadas
         int count_files(std::string directory, std::string ext);
+        std::vector<float> ler_angulos_captura(std::string directory);
         Eigen::Matrix4f transformada_laser_rot(float theta); // Função que gera a matriz de rotação referente a um ângulo THETA
         Eigen::Matrix4f transformada_laser2astra(); // Função que retorna a matriz de transformação entre o LASER e a câmera ASTRA ...
         Eigen::Matrix4f transformada_astra2zed(); // Funcao que retorna a matriz de transformacao entre a camera ASTRA e a camera ZED

@@ -20,9 +20,9 @@ Registro::~Registro()
 
 void Registro::init()
 {
-        K_astra << 525.1389,    1.4908,  324.1741,
-                         0,       521.6805,  244.8827,
-                         0,           0   ,    1.0000;
+        K_astra << 525.1389,    1.4908  ,  324.1741,
+                      0    ,    521.6805,  244.8827,
+                      0    ,       0    ,    1.0000;
 
         K_zed <<         0,  0,  0,      // (TODO) Colocar matriz correta de calibracao
                          0,  0,  0,
@@ -35,8 +35,8 @@ void Registro::init()
 void Registro::process(std::string directory, std::string ext)
 {
 //     Contando o numero de imagens em um determinado diretorio
-//    int cnt_img = count_files("directory" , "ext")/2;
-    int cnt_img = 5;
+    int cnt_img = count_files("directory" , "ext")/2;
+    //int cnt_img = 5;
     std::vector<cv::Mat> imagens_zed;
     std::vector<cv::Mat> imagens_astra;
     std::vector<PointCloud<PointXYZ>> nuvens_astra;
@@ -120,6 +120,32 @@ void Registro::run(std::vector<cv::Mat> imagens_zed, std::vector<cv::Mat> imagen
 }
 
 
+std::vector<float> Registro::ler_angulos_captura(std::string directory)
+{
+    std::vector<float> angulos_captura;
+    string string_tmp;
+    ifstream infile;
+    infile.open (directory + "angulos.txt");
+    vector<string> result;
+    while(!infile.eof())
+    {
+        getline(infile, string_tmp);
+
+            stringstream ss (string_tmp);
+            string item;
+
+            while (getline (ss, item, ' '))
+            {
+                result.push_back (item);
+            }
+
+            angulos_captura.push_back (strtof((result.at(1)).c_str(),0)); // pega apenas a segunda posicao que 'e a posicao correspondente ao angulo de captura
+
+    }
+
+    infile.close();
+    return angulos_captura;
+}
 
 Eigen::Matrix4f Registro::transformada_laser_rot(float theta) // adaptado de 'saveandwork.cpp'
 {
@@ -163,7 +189,7 @@ Eigen::Matrix4f Registro::transformada_astra2zed()
 
 
 
-int count_files(std::string directory, std::string ext) //  Funcao para contar o numero de arquivos de uma determinada extensao (ext) em um determinado diretorio (directory)
+int Registro::count_files(std::string directory, std::string ext) //  Funcao para contar o numero de arquivos de uma determinada extensao (ext) em um determinado diretorio (directory)
 {
         namespace fs = boost::filesystem;
         fs::path Path(directory);
