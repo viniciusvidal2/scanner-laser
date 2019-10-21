@@ -208,11 +208,14 @@ bool Scanner::save_data(){
     if(acc->size() > 10){
         // Salvar a nuvem final de forma correta
         ROS_INFO("Nuvens parciais e final serao processadas e salvas...");
+        saving(1);
         saw->process_color_and_save(imagens_parciais, nuvens_parciais, angulos_captura, acc);
         // Salvar o arquivo final de angulos para pos processamento
         ROS_INFO("Processadas com sucesso, salvando arquivos de angulos...");
+        saving(2);
         saw->save_angles_file(inicio_nuvens, final_nuvens, angulos_captura);
         ROS_INFO("Arquivo de angulos salvo.");
+        saving(3);
     } else {
         ROS_WARN("Nao tem nuvem ainda seu imbecil !");
         return false;

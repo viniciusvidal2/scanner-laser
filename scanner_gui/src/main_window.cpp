@@ -79,9 +79,9 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     scan.set_course(double(ui.dial_minmotor->value()), double(ui.dial_maxmotor->value()));
 
     // Liga signal e slot para a progressBar
-    connect(&scan, SIGNAL(new_step()            ), this, SLOT(update_progressBar()       ));
-    connect(&scan, SIGNAL(going_to_start_point()), this, SLOT(update_progressBar_inicio()));
-    connect(&scan, SIGNAL(saving()              ), this, SLOT(update_progressBar_salvar()));
+    connect(&scan, SIGNAL(new_step()            ), this, SLOT(update_progressBar()            ));
+    connect(&scan, SIGNAL(going_to_start_point()), this, SLOT(update_progressBar_inicio()     ));
+    connect(&scan, SIGNAL(saving(int)           ), this, SLOT(evaluate_progressBar_salvar(int)));
 
     /// --- ABA 2 --- ///
     ui.checkBox_icp->setChecked(true); // Checkbox do icp começa a principio valendo
@@ -157,8 +157,21 @@ void MainWindow::update_progressBar_inicio(){
     }
 }
 
-void MainWindow::update_progressBar_salvar(){
-
+void MainWindow::evaluate_progressBar_salvar(int etapa){
+    switch (etapa) {
+    case 1:
+        ui.progressBar_salvar->setValue(20);
+        break;
+    case 2:
+        ui.progressBar_salvar->setValue(80);
+        break;
+    case 3:
+        ui.progressBar_salvar->setValue(100);
+        break;
+    default:
+        ui.progressBar_salvar->setValue(100);
+        break;
+    }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// PUSHBUTTONS ///////////////////////////////////////////
@@ -183,6 +196,8 @@ void MainWindow::on_pushButton_ligarscanner_clicked(){
     ui.dial_maxlaser->setEnabled(false);
     ui.lineEdit_maxlaser->setEnabled(false);
     ui.lineEdit_minlaser->setEnabled(false);
+    // Habilita a progressbar que vai pro inicio
+    ui.progressBar_inicio->setEnabled(true);
     // Pega a posicao inicial em que o scanner se encontra
     posicao_inicial_raw = scan.get_current_position();
 }
@@ -219,6 +234,7 @@ void MainWindow::on_pushButton_aquisicao_clicked(){
 
     ui.pushButton_visualizar->setEnabled(true);
     ui.progressBar->setEnabled(true);
+    ui.progressBar_salvar->setEnabled(true);
 
     ROS_WARN("Comecamos a aquisitar, ligue o visualizador.");
 }

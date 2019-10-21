@@ -109,7 +109,7 @@ public:
 Q_SIGNALS:
     void new_step();
     void going_to_start_point();
-    void saving();
+    void saving(int etapa);
 
 private:
     // Ouve laser e motores, acumula nuvem
