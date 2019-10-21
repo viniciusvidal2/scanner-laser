@@ -254,6 +254,9 @@ void Scanner::send_begin_course(){
             going_to_start_point();
             r.sleep();
         } else {
+            going_to_start_point();
+            r.sleep();
+            going_to_start_point();
             break;
         }
     }

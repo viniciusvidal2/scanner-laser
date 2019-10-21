@@ -72,6 +72,8 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.pushButton_fimaquisicao->setEnabled(false);
     // Ajuste da progressBar
     ui.progressBar->setEnabled(false);
+    ui.progressBar_inicio->setEnabled(false);
+    ui.progressBar_salvar->setEnabled(false);
 
     // Inicia os limites e vetores corretamente de scan, segundo dials
     scan.set_course(double(ui.dial_minmotor->value()), double(ui.dial_maxmotor->value()));
@@ -79,6 +81,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     // Liga signal e slot para a progressBar
     connect(&scan, SIGNAL(new_step()            ), this, SLOT(update_progressBar()       ));
     connect(&scan, SIGNAL(going_to_start_point()), this, SLOT(update_progressBar_inicio()));
+    connect(&scan, SIGNAL(saving()              ), this, SLOT(update_progressBar_salvar()));
 
     /// --- ABA 2 --- ///
     ui.checkBox_icp->setChecked(true); // Checkbox do icp começa a principio valendo
@@ -141,7 +144,7 @@ void MainWindow::update_progressBar(){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void MainWindow::update_progressBar_inicio(){
     int local;
-    int valor = abs(scan.get_current_position() - posicao_inicial_raw) / abs(ui.dial_minmotor->value() - posicao_inicial_raw);
+    int valor = 100 - abs(scan.get_current_position() - posicao_inicial_raw) / abs(ui.dial_minmotor->value() - posicao_inicial_raw);
     ui.progressBar_inicio->setValue(valor);
     if(scan.begin_reached(local)){
         ui.progressBar_inicio->setValue(100);
@@ -152,6 +155,10 @@ void MainWindow::update_progressBar_inicio(){
         ui.lineEdit_viagens->setEnabled(true);
         ui.label_viagens->setEnabled(true);
     }
+}
+
+void MainWindow::update_progressBar_salvar(){
+
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// PUSHBUTTONS ///////////////////////////////////////////

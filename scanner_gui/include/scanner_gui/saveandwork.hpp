@@ -38,7 +38,6 @@
 #include <dirent.h>
 #include <errno.h>
 #include <vector>
-#include <string>
 #include <fstream>
 #include <sstream>
 #include <stdio.h>
@@ -79,9 +78,9 @@ private:
 
    void process_and_save_final_cloud(PointCloud<PointT>::Ptr entrada);
    void calculate_normals(PointCloud<PointC> entrada, PointCloud<PointT>::Ptr acc_normal);
-
    Eigen::Matrix4f calculate_transformation(float thetay_deg);
    void project_cloud_to_image(PointCloud<PointC>::Ptr in, cv::Mat img, Eigen::Matrix4f T);
+   std::string write_line_for_nvm(float f, std::string nome, Eigen::Quaternion<float> q);
 };
 
 #endif // SAVEANDWORK_HPP

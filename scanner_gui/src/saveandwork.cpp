@@ -116,6 +116,42 @@ void SaveAndWork::save_angles_file(std::vector<float> in, std::vector<float> fn,
         }
     }
     arquivo.close();
+
+    // Salvar arquivos NVM
+    std::string nome_nvm;
+    std::string linha2;
+    for(size_t i=0; i<ac.size(); i++){
+        // Nome do arquivo nvm atual
+        nome_nvm = pasta+"im_astra_"+std::to_string(i)+".nvm";
+        // Calcular transformacao a partir do angulo e transformar em quaternion
+        Eigen::Matrix4f T_temp;
+        T_temp = calculate_transformation(ac[i]);
+        Eigen::Matrix3f rot;
+        rot << T_temp.block<3,3>(0, 0);
+        Eigen::Quaternion<float> q(T_temp.block<3,3>(0, 0));
+        // Formar a linha
+        linha2 = this->write_line_for_nvm(550, nome_nvm, q);
+        // Escrever no arquivo com nome correspondente ao da fracao de nuvem para imagem astra
+        ofstream arquivo_astra_nvm(nome_nvm);
+        if(arquivo_astra_nvm.is_open()){
+            arquivo_astra_nvm << "NVM_V3\n\n";
+            arquivo_astra_nvm << "1\n"; // Quantas imagens, sempre uma aqui
+            arquivo_astra_nvm << linha2;
+        }
+        arquivo_astra_nvm.close();
+        // Nome do arquivo nvm atual
+        nome_nvm = pasta+"im_zed_"+std::to_string(i)+".nvm";
+        // Formar a linha
+        linha2 = this->write_line_for_nvm(1460, nome_nvm, q);
+        // Escrever no arquivo com nome correspondente ao da fracao de nuvem para imagem astra
+        ofstream arquivo_zed_nvm(nome_nvm);
+        if(arquivo_zed_nvm.is_open()){
+            arquivo_zed_nvm << "NVM_V3\n\n";
+            arquivo_zed_nvm << "1\n"; // Quantas imagens, sempre uma aqui
+            arquivo_zed_nvm << linha2;
+        }
+        arquivo_zed_nvm.close();
+    }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void SaveAndWork::process_and_save_final_cloud(PointCloud<PointT>::Ptr entrada){
@@ -225,5 +261,19 @@ void SaveAndWork::project_cloud_to_image(PointCloud<PointC>::Ptr in, cv::Mat img
 //    sor.setMeanK(1);
 //    sor.setStddevMulThresh(0.5);
 //    sor.filter(*in);
-
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+std::string SaveAndWork::write_line_for_nvm(float f, std::string nome, Eigen::Quaternion<float> q){
+    std::string linha = nome;
+    // Adicionar foco
+    linha = linha + " " + std::to_string(f);
+    // Adicionar quaternion
+    linha = linha + " " + std::to_string(q.w()) + " " + std::to_string(q.x()) + " " + std::to_string(q.y()) + " " + std::to_string(q.z());
+    // Adicionar centro da camera
+    linha = linha + " 0 0 0";
+    // Adicionar distorcao radial (crendo 0) e 0 final
+    linha = linha + " 0 0\n"; // IMPORTANTE pular linha aqui, o MeshRecon precisa disso no MART
+    // Muda as virgulas por pontos no arquivo
+    std::replace(linha.begin(), linha.end(), ',', '.');
+    return linha;
 }

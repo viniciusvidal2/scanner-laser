@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1056</width>
-    <height>688</height>
+    <height>777</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -343,6 +343,23 @@
            </layout>
           </item>
           <item>
+           <widget class="QPushButton" name="pushButton_visualizar">
+            <property name="text">
+             <string>Visualizar</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_processocaptura">
+            <property name="text">
+             <string>Andamento do processo de captura:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QProgressBar" name="progressBar">
             <property name="value">
              <number>0</number>
@@ -350,9 +367,19 @@
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_visualizar">
+           <widget class="QLabel" name="label_processosalvar">
             <property name="text">
-             <string>Visualizar</string>
+             <string>Andamento da projecao e arquivamento de dados:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QProgressBar" name="progressBar_salvar">
+            <property name="value">
+             <number>0</number>
             </property>
            </widget>
           </item>

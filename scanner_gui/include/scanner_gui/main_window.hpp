@@ -80,6 +80,7 @@ private Q_SLOTS:
 
         void update_progressBar();
         void update_progressBar_inicio();
+        void update_progressBar_salvar();
 
         void on_lineEdit_overlap_returnPressed();
 
