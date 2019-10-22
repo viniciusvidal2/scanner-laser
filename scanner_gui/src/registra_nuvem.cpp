@@ -27,7 +27,6 @@ RegistraNuvem::~RegistraNuvem(){
         ros::shutdown();
         ros::waitForShutdown();
     }
-    delete pl;
     wait();
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -64,10 +63,6 @@ void RegistraNuvem::init(){
 
     // Estamos na aba3?
     aba3 = false;
-
-    // Classe para projetar nuvem na camera virtual -> teste
-    pl = new ProjetaLaser(init_argc, init_argv);
-    pl->set_angulos(0, 30);
 
     ros::Rate rate(0.5);
     while(ros::ok()){
@@ -371,11 +366,6 @@ void RegistraNuvem::set_nuvem_filtrar(QString n){
     *nuvem_filtrar_temp = *nuvem_filtrar;
 
     color_cloud_depth();
-
-    // Projetando dentro da camera virtual do laser aqui
-    pl->set_angulos(150, 210);
-    pl->set_nuvem(nuvem_filtrar_temp);
-    pl->process();
 
     Eigen::Vector3f centroide;
     centroide = this->calcula_centroide(nuvem_filtrar_temp);

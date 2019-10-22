@@ -48,34 +48,35 @@
 #include <boost/filesystem.hpp>
 
 using namespace pcl;
-typedef PointXYZRGBNormal PointT;
 
 class ProjetaLaser : public QThread
 {
     Q_OBJECT
 public:
-    ProjetaLaser(int argc, char **argv);
+    typedef PointXYZRGB PointT;
+    ProjetaLaser(Eigen::Matrix3f K_, Eigen::Matrix4f Tla, std::string p);
     void init();
     virtual ~ProjetaLaser();
 
-    void set_angulos(float min, float max);
-    void set_nuvem(PointCloud<PointT>::Ptr cloud);
+    void set_capture_angles(std::vector<float> in);
+    void set_cloud_vector(std::vector<PointCloud<PointT>> clouds);
 
-    void process();
+    void process(int indice);
 
 
 
 private:
-    int init_argc;
-    char **init_argv;
 
-    float angulo_central;
-    float angulo_min;     // ANGULOS EM PAN, GRAUS
-    float angulo_max;
-    PointCloud<PointT>::Ptr nuvem;
+    std::vector<float> angulos;
+    std::vector<PointCloud<PointT>> nuvens;
+    std::string pasta;
 
     Eigen::Matrix3f K;
     Eigen::Matrix4f T_eixos;
+
+    Eigen::Matrix4f calculate_transformation(float thetay_deg);
+    void color_cloud_depth(PointCloud<PointT>::Ptr cloud);
+    float normaldist(float x, float media, float dev);
 
 };
 

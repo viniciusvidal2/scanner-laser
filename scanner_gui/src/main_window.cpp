@@ -79,9 +79,9 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     scan.set_course(double(ui.dial_minmotor->value()), double(ui.dial_maxmotor->value()));
 
     // Liga signal e slot para a progressBar
-    connect(&scan, SIGNAL(new_step()            ), this, SLOT(update_progressBar()            ));
-    connect(&scan, SIGNAL(going_to_start_point()), this, SLOT(update_progressBar_inicio()     ));
-    connect(&scan, SIGNAL(saving(int)           ), this, SLOT(evaluate_progressBar_salvar(int)));
+    connect(&scan, SIGNAL(new_step()            ), this, SLOT(update_progressBar()                 ));
+    connect(&scan, SIGNAL(going_to_start_point()), this, SLOT(update_progressBar_inicio()          ));
+    connect(&scan, SIGNAL(saving(int, int)      ), this, SLOT(evaluate_progressBar_salvar(int, int)));
 
     /// --- ABA 2 --- ///
     ui.checkBox_icp->setChecked(true); // Checkbox do icp começa a principio valendo
@@ -157,21 +157,11 @@ void MainWindow::update_progressBar_inicio(){
     }
 }
 
-void MainWindow::evaluate_progressBar_salvar(int etapa){
-    switch (etapa) {
-    case 1:
-        ui.progressBar_salvar->setValue(20);
-        break;
-    case 2:
-        ui.progressBar_salvar->setValue(80);
-        break;
-    case 3:
+void MainWindow::evaluate_progressBar_salvar(int etapa, int totais){
+    if(etapa < totais)
+        ui.progressBar_salvar->setValue(int(float(etapa)/float(totais)*100.0));
+    else if(etapa == totais)
         ui.progressBar_salvar->setValue(100);
-        break;
-    default:
-        ui.progressBar_salvar->setValue(100);
-        break;
-    }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////// PUSHBUTTONS ///////////////////////////////////////////

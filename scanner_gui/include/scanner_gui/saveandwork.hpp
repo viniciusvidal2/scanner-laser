@@ -62,7 +62,7 @@ class SaveAndWork : public QObject
 {
   Q_OBJECT
 public:
-   SaveAndWork(Eigen::Matrix3f K_, Eigen::Matrix4f Tla);
+   SaveAndWork(Eigen::Matrix3f K_, Eigen::Matrix4f Tla, std::string p);
    virtual ~SaveAndWork();
    void init();
 

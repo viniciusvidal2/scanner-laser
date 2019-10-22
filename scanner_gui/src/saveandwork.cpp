@@ -4,8 +4,8 @@
 #include <QtConcurrentRun>
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-SaveAndWork::SaveAndWork(Eigen::Matrix3f K_, Eigen::Matrix4f Tla):
-    K_astra(K_), T_laser_astra(Tla)
+SaveAndWork::SaveAndWork(Eigen::Matrix3f K_, Eigen::Matrix4f Tla, std::string p):
+    K_astra(K_), T_laser_astra(Tla), pasta(p)
 {
     QFuture<void> future = QtConcurrent::run(this, &SaveAndWork::init);
 }
@@ -20,23 +20,8 @@ SaveAndWork::~SaveAndWork(){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void SaveAndWork::init(){
 
-    // Inicia a pasta de salvar os arquivos
-    char* home;
-    home = getenv("HOME");
-
-    time_t t = time(0);
-    struct tm * now = localtime( & t );
-    string month, day, hour, minutes;
-    month   = boost::lexical_cast<std::string>(now->tm_mon );
-    day     = boost::lexical_cast<std::string>(now->tm_mday);
-    hour    = boost::lexical_cast<std::string>(now->tm_hour);
-    minutes = boost::lexical_cast<std::string>(now->tm_min );
-    std::string date = "_" + month + "_" + day + "_" + hour + "h_" + minutes + "m";
-
-    pasta = std::string(home)+"/Desktop/Aquisicao"+date+"/";
-
     // Criando a pasta
-    bool criado = mkdir((std::string(home)+"/Desktop/Aquisicao"+date).c_str(), 0777);
+    bool criado = mkdir(pasta.c_str(), 0777);
     if(!criado)
         ROS_INFO("Diretorio para salvar dados criado.");
     else
@@ -46,13 +31,13 @@ void SaveAndWork::init(){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void SaveAndWork::save_image_and_clouds_partial(cv::Mat imagem, cv::Mat imzed, PointCloud<PointC>::Ptr nuvem_astra, PointCloud<PointXYZ>::Ptr nuvem_pixels, size_t indice){
     // Salvar a imagem na pasta certa
-    std::string nome_imagem = "im_astra_"+std::to_string(int(indice))+".jpg";
+    std::string nome_imagem = "im_astra_"+std::to_string(int(indice))+".png";
     std::vector<int> opcoes;
-    opcoes.push_back(cv::IMWRITE_JPEG_QUALITY);
+    opcoes.push_back(cv::IMWRITE_PNG_COMPRESSION);
     cv::imwrite(pasta+nome_imagem, imagem, opcoes);
 
     // Salvar a imagem da ZED na pasta certa
-    std::string nome_zed = "im_zed_"+std::to_string(int(indice))+".jpg";
+    std::string nome_zed = "im_zed_"+std::to_string(int(indice))+".png";
     cv::imwrite(pasta+nome_zed, imzed, opcoes);
 
     // Salvar a nuvem na pasta certa da astra

@@ -80,7 +80,7 @@ private Q_SLOTS:
 
         void update_progressBar();
         void update_progressBar_inicio();
-        void evaluate_progressBar_salvar(int etapa);
+        void evaluate_progressBar_salvar(int etapa, int totais);
 
         void on_lineEdit_overlap_returnPressed();
 

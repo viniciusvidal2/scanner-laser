@@ -91,8 +91,26 @@ void Scanner::init(){
 //    T_eixos.block<3,1>(0, 3) << 0.004, 0.105, 0; // [m]
 //    T_eixos.block<3,1>(0, 3) << 0.04, 0.55, 0; // [m]
 
+    // Inicia a pasta de salvar os arquivos
+    char* home;
+    home = getenv("HOME");
+
+    time_t t = time(0);
+    struct tm * now = localtime( & t );
+    string month, day, hour, minutes;
+    month   = boost::lexical_cast<std::string>(now->tm_mon );
+    day     = boost::lexical_cast<std::string>(now->tm_mday);
+    hour    = boost::lexical_cast<std::string>(now->tm_hour);
+    minutes = boost::lexical_cast<std::string>(now->tm_min );
+    std::string date = "_" + month + "_" + day + "_" + hour + "h_" + minutes + "m";
+
+    std::string pasta = std::string(home)+"/Desktop/Aquisicao"+date+"/";
+
     // Objeto de trabalho e salvamento das nuvens
-    saw = new SaveAndWork(K, T_eixos);
+    saw = new SaveAndWork(K, T_eixos, pasta);
+
+    // Objeto para projetar laser sobre camera virtual
+    pl  = new ProjetaLaser(K, T_eixos, pasta);
 
     // Inicia o subscriber sincronizado para as mensagens de laser e motor
     message_filters::Subscriber<sensor_msgs::LaserScan> laser_sub(nh_, "/scan"                           , 100);
@@ -206,16 +224,25 @@ bool Scanner::begin_reached(int &r){
 ///////////////////////////////////////////////////////////////////////////////////////////
 bool Scanner::save_data(){
     if(acc->size() > 10){
+        int etapas = 3 + int(nuvens_parciais.size());
         // Salvar a nuvem final de forma correta
         ROS_INFO("Nuvens parciais e final serao processadas e salvas...");
-        saving(1);
+        saving(1, etapas);
         saw->process_color_and_save(imagens_parciais, nuvens_parciais, angulos_captura, acc);
         // Salvar o arquivo final de angulos para pos processamento
         ROS_INFO("Processadas com sucesso, salvando arquivos de angulos...");
-        saving(2);
+        saving(2, etapas);
         saw->save_angles_file(inicio_nuvens, final_nuvens, angulos_captura);
         ROS_INFO("Arquivo de angulos salvo.");
-        saving(3);
+        saving(3, etapas);
+        // Setar arquivos no objeto de projecao de laser
+        pl->set_cloud_vector(nuvens_parciais);
+        pl->set_capture_angles(angulos_captura);
+        // Processar para cada angulo de captura e sua nuvem respectiva
+        for(size_t i=0; i < nuvens_parciais.size(); i++){
+            pl->process(int(i));
+            saving(4+i, etapas);
+        }
     } else {
         ROS_WARN("Nao tem nuvem ainda seu imbecil !");
         return false;

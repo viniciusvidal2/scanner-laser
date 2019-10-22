@@ -74,6 +74,7 @@
 #include <QString>
 
 #include "saveandwork.hpp"
+#include "projetalaser.hpp"
 
 namespace scanner_gui{
 
@@ -109,7 +110,7 @@ public:
 Q_SIGNALS:
     void new_step();
     void going_to_start_point();
-    void saving(int etapa);
+    void saving(int etapa, int totais);
 
 private:
     // Ouve laser e motores, acumula nuvem
@@ -180,6 +181,9 @@ private:
 
     // Objeto da classe de processo e salvar os dados
     SaveAndWork* saw;
+
+    // Objeto da classe que projeta laser em camera virtual
+    ProjetaLaser* pl;
 
 };
 
