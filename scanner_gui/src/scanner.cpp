@@ -270,7 +270,7 @@ void Scanner::send_to_opposite_edge(int t){
 Eigen::Matrix4f Scanner::transformFromRaw(double raw){
     // Valor em graus que girou, tirando a referencia, convertido para frame global ODOM:
     // theta_y = -degrees (contrario a mao direita)
-    double theta_y = -raw2deg(raw - raw_ref);
+    double theta_y = raw2deg(raw - raw_ref);
 
     // Constroi matriz de rotacao
     Eigen::Matrix3f R;
