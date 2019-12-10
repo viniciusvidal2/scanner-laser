@@ -50,9 +50,9 @@ include_directories(${CUDA_INCLUDE_DIRS})
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 
-# Parametros ajustaveis zed-astra calibracao
-#generate_dynamic_reconfigure_options(cfg/params.cfg)
-#include_directories(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
+# Parametros ajustaveis ivensense calibracao
+generate_dynamic_reconfigure_options(cfg/params_iv.cfg cfg/params_term.cfg)
+include_directories(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES astra_calibrada
@@ -78,11 +78,35 @@ include_directories(
 #   src/${PROJECT_NAME}/astra_calibrada.cpp
 # )
 
-add_executable(astra_calibrada src/astra_calibrada.cpp)
+#add_executable(astra_calibrada src/astra_calibrada.cpp)
 #target_compile_options(astra_calibrada PRIVATE ${OpenMP_FLAGS})
 #add_dependencies(astra_calibrada ${catkin_EXPORTED_TARGETS})
 #add_dependencies(astra_calibrada ${PROJECT_NAME}_gencfg ${catkin_EXPORTED_TARGETS})
-target_link_libraries(astra_calibrada
+#target_link_libraries(astra_calibrada
+#  ${catkin_LIBRARIES}
+#  ${PCL_LIBRARIES}
+#  ${OpenCV_LIBS}
+#  ${roslib_LIBRARIES}
+#  ${OpenMP_LIBS}
+#)
+
+add_executable(ivensense_calibrada src/funde_ivensense.cpp)
+target_compile_options(ivensense_calibrada PRIVATE ${OpenMP_FLAGS})
+add_dependencies(ivensense_calibrada ${catkin_EXPORTED_TARGETS})
+add_dependencies(ivensense_calibrada ${PROJECT_NAME}_gencfg ${catkin_EXPORTED_TARGETS})
+target_link_libraries(ivensense_calibrada
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${OpenCV_LIBS}
+  ${roslib_LIBRARIES}
+  ${OpenMP_LIBS}
+)
+
+add_executable(projeta_termica src/projeta_termica.cpp)
+target_compile_options(projeta_termica PRIVATE ${OpenMP_FLAGS})
+add_dependencies(projeta_termica ${catkin_EXPORTED_TARGETS})
+add_dependencies(projeta_termica ${PROJECT_NAME}_gencfgtermica ${catkin_EXPORTED_TARGETS})
+target_link_libraries(projeta_termica
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
   ${OpenCV_LIBS}
@@ -113,9 +137,3 @@ target_link_libraries(calibrar_astra_zed
   ${OpenCV_LIBS}
   ${roslib_LIBRARIES}
 )
-
-#add_executable(viewer viewer.cpp)
-#target_link_libraries(viewer ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${roslib_LIBRARIES})
-
-#add_executable(sincroniza_odom sincroniza_odom.cpp)
-#target_link_libraries(sincroniza_odom ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${roslib_LIBRARIES})
