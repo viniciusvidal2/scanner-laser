@@ -7,6 +7,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
+#include <nav_msgs/Odometry.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -57,11 +58,11 @@ using namespace message_filters;
 // Definicoes
 typedef PointXYZRGB PointT;
 typedef PointXYZRGB PointT;
-typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2> syncPolicy;
+typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2, nav_msgs::Odometry> syncPolicy;
 
 // Variaveis
 ros::Publisher pub_cloud, pub_base, pub_jet;
-PointCloud<PointT>::Ptr nuvem_base, nuvem_termica;
+PointCloud<PointT>::Ptr nuvem_base, nuvem_termica, nuvem_acumulada, nuvem_acumulada_termica;
 // Matriz intrinseca K para Thermal cam
 Eigen::Matrix3f K;
 int contador = 0;
@@ -111,7 +112,7 @@ void remove_outlier(PointCloud<PointT>::Ptr in, float mean, float deviation){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Processa e publica
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void processAndPublish(){
+void processAndPublish(Eigen::Matrix4f T, Eigen::Quaternion<float> q, Eigen::Vector3f t){
 //    if(!recebendo){
         // Coisas de imagem
         cv_bridge::CvImage jet_msg;
@@ -148,21 +149,40 @@ void processAndPublish(){
                 point_termica.b = b;
 
                 nuvem_termica->points[i] = point_termica;
+            } else {
+                nuvem_termica->points[i] = nuvem_base->points[i];
             }
         }
+        std::vector<int> indices_nan;
+        removeNaNFromPointCloud(*nuvem_termica, indices_nan);
 
-        nuvem_termica->header.frame_id = "zed_left_camera";
+        // Trazer de volta para o frame da ZED, com X para frente da camera
+        transformPointCloud(*nuvem_base   , *nuvem_base   , T.inverse());
+        transformPointCloud(*nuvem_termica, *nuvem_termica, T.inverse());
+
+        // Colocar no lugar certo segundo Odometria
+        transformPointCloud(*nuvem_termica, *nuvem_termica, t, q);
+        transformPointCloud(*nuvem_base   , *nuvem_base   , t, q);
+
+        // Acumular nuvens
+        *nuvem_acumulada         += *nuvem_base;
+        *nuvem_acumulada_termica += *nuvem_termica;
+        ROS_INFO("Tamanho das nuvens acumuladas: %zu", nuvem_acumulada->size());
+
+        // Salvar dados - possivel para facilitar talvez
+
         // Mensagem Nuvem
-        toROSMsg(*nuvem_base   , base_msg);
+        nuvem_termica->header.frame_id = nuvem_base->header.frame_id;
+        toROSMsg(*nuvem_acumulada_termica   , base_msg);
         toROSMsg(*nuvem_termica, msg_ter );
         msg_ter.header.frame_id  = nuvem_termica->header.frame_id;
         msg_ter.header.stamp     = ros::Time::now();
-        base_msg.header.frame_id = "zed_left_camera";
+        base_msg.header.frame_id = nuvem_base->header.frame_id;
         base_msg.header.stamp    = msg_ter.header.stamp;
         jet_msg.header.stamp     = msg_ter.header.stamp;
 
         // Publicando
-        ROS_INFO("Publicando %zu pontos...", base_msg.data.size());
+        ROS_INFO("Publicando %zu pontos e %zu pontos ...", base_msg.data.size(), msg_ter.data.size());
         pub_cloud.publish(msg_ter);
         pub_base.publish(base_msg);
         pub_jet.publish(jet_msg.toImageMsg());
@@ -171,21 +191,32 @@ void processAndPublish(){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Callback para projecao da nuvem
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void callback(const sensor_msgs::ImageConstPtr& msg_t,
-              const sensor_msgs::PointCloud2ConstPtr& msg_pc)
+void callback(const sensor_msgs::ImageConstPtr&       msg_t ,
+              const sensor_msgs::PointCloud2ConstPtr& msg_pc,
+              const nav_msgs::OdometryConstPtr&       msg_odo)
 {
     recebendo = true;
+    ROS_INFO("Recebendo dados sincronizados ...");
     // Coisas de imagem
     cv::Mat img_g;
     cv::Mat imagem_termica_cor;
-    imgCv_ = cv_bridge::toCvShare(msg_t, "rgb8")->image;
-    cv::cvtColor(imgCv_, img_g, CV_RGB2GRAY);
-    cv::applyColorMap(img_g, imagem_termica_cor, cv::COLORMAP_JET);
-    imgCv_ = imagem_termica_cor;
+    imgCv_ = cv_bridge::toCvShare(msg_t, "bgr8")->image;
+//    cv::cvtColor(imgCv_, img_g, CV_BGR2GRAY);
+//    cv::applyColorMap(img_g, imagem_termica_cor, cv::COLORMAP_JET);
+//    imgCv_ = imagem_termica_cor;
 
     cv_bridge::CvImage jet_msg;
     jet_msg.image = imgCv_;
     jet_msg.encoding = sensor_msgs::image_encodings::BGR8;
+
+    // Recebe Odometria
+    Eigen::Quaternion<float> q;
+    Eigen::Vector3f          t;
+    q.x() = (float)msg_odo->pose.pose.orientation.x;
+    q.y() = (float)msg_odo->pose.pose.orientation.y;
+    q.z() = (float)msg_odo->pose.pose.orientation.z;
+    q.w() = (float)msg_odo->pose.pose.orientation.w;
+    t     = {msg_odo->pose.pose.position.x, msg_odo->pose.pose.position.y, msg_odo->pose.pose.position.z};
 
     // Inicia as nuvens e mensagem de saida
     fromROSMsg(*msg_pc, *nuvem_base);
@@ -201,7 +232,7 @@ void callback(const sensor_msgs::ImageConstPtr& msg_t,
 
     recebendo = false;    
 
-    processAndPublish();
+    processAndPublish(T, q, t);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Callback para parametros reconfiguraveis
@@ -232,12 +263,14 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     ros::NodeHandle n_("~");
 
-    nuvem_base = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
-//    loadPLYFile("/home/vinicius/Desktop/prova_conceito_artigo.ply", *nuvem_base);
-    nuvem_base->header.frame_id = "zed_left_camera";
-
-    nuvem_termica = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
-    nuvem_termica->header.frame_id = "zed_left_camera";
+    nuvem_base              = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+    nuvem_acumulada         = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+    nuvem_termica           = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+    nuvem_acumulada_termica = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+    nuvem_base->header.frame_id              = "zed_left_camera";
+    nuvem_termica->header.frame_id           = nuvem_base->header.frame_id;
+    nuvem_acumulada->header.frame_id         = nuvem_base->header.frame_id;
+    nuvem_acumulada_termica->header.frame_id = nuvem_base->header.frame_id;
 
     // Servidor e callback de parametros de calibracao reconfiguraveis
     dynamic_reconfigure::Server<astra_calibrada::term_params_Config> server;
@@ -249,7 +282,7 @@ int main(int argc, char **argv)
             0, 1500, 256,
             0,    0,   1;
 
-    RT << 1, 0, 0,  -0.065,
+    RT << 1, 0, 0,  -0.075,
           0, 1, 0,  0.045,
           0, 0, 1,  0    ;
 
@@ -259,11 +292,13 @@ int main(int argc, char **argv)
     pub_base  = nh.advertise<sensor_msgs::PointCloud2>("/cloud_base"      , 10);
     pub_jet   = nh.advertise<sensor_msgs::Image      >("/ter_jet"         , 10);
 
-//    ros::Subscriber ter_sub = nh.subscribe("/thermal/image_raw", 1000, callback);
     message_filters::Subscriber<sensor_msgs::Image>       subima(nh, "/dados_sync/image_8bits", 10);
     message_filters::Subscriber<sensor_msgs::PointCloud2> subptc(nh, "/dados_sync/point_cloud", 10);
-    Synchronizer<syncPolicy> sync(syncPolicy(10), subima, subptc);
-    sync.registerCallback(boost::bind(&callback, _1, _2));
+    message_filters::Subscriber<nav_msgs::Odometry      > subodo(nh, "/dados_sync/odometry"   , 10);
+    Synchronizer<syncPolicy> sync(syncPolicy(10), subima, subptc, subodo);
+    sync.registerCallback(boost::bind(&callback, _1, _2, _3));
+
+    ROS_INFO("Iniciando no ...");
 
     ros::Rate r(2);
     while(ros::ok()){
