@@ -102,11 +102,11 @@ target_link_libraries(ivensense_calibrada
   ${OpenMP_LIBS}
 )
 
-add_executable(projeta_termica src/projeta_termica.cpp)
-target_compile_options(projeta_termica PRIVATE ${OpenMP_FLAGS})
-add_dependencies(projeta_termica ${catkin_EXPORTED_TARGETS})
-add_dependencies(projeta_termica ${PROJECT_NAME}_gencfgtermica ${catkin_EXPORTED_TARGETS})
-target_link_libraries(projeta_termica
+add_executable(projeta_termica2 src/projeta_termica.cpp)
+target_compile_options(projeta_termica2 PRIVATE ${OpenMP_FLAGS})
+add_dependencies(projeta_termica2 ${catkin_EXPORTED_TARGETS})
+add_dependencies(projeta_termica2 ${PROJECT_NAME}_gencfgtermica ${catkin_EXPORTED_TARGETS})
+target_link_libraries(projeta_termica2
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
   ${OpenCV_LIBS}

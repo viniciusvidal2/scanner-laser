@@ -109,68 +109,14 @@ void remove_outlier(PointCloud<PointT>::Ptr in, float mean, float deviation){
     sor.filter(*in);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Callback para projecao da nuvem
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void callback(const sensor_msgs::ImageConstPtr& msg_t,
-              const sensor_msgs::PointCloud2ConstPtr& msg_pc)
-{
-    recebendo = true;
-    // Coisas de imagem
-    cv::Mat img_g;
-    cv::Mat imagem_termica_cor;
-    imgCv_ = cv_bridge::toCvShare(msg_t, "rgb8")->image;
-    cv::cvtColor(imgCv_, img_g, CV_BGR2GRAY);
-    cv::applyColorMap(img_g, imagem_termica_cor, cv::COLORMAP_JET);
-    imgCv_ = imagem_termica_cor;
-
-    cv_bridge::CvImage jet_msg;
-    jet_msg.image = imgCv_;
-    jet_msg.encoding = sensor_msgs::image_encodings::BGR8;
-
-    // Inicia as nuvens e mensagem de saida
-    fromROSMsg(*msg_pc, *nuvem_base);
-    remove_outlier(nuvem_base, 10, 1);
-    nuvem_termica->clear(); nuvem_termica->resize(nuvem_base->size());
-
-    // Rotaciona a nuvem para o frame onde Z esta para frente (se ja estiver, comentar)
-    Eigen::Matrix3f R;
-    R = Eigen::AngleAxisf(M_PI/2, Eigen::Vector3f::UnitZ()) * Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitY());
-    Eigen::Matrix4f T = Eigen::Matrix4f::Identity();     // Matriz de transformaçao homogenea
-    T.block<3, 3>(0, 0) = R;                             // Adiciona a rotacao onde deve estar
-    transformPointCloud(*nuvem_base, *nuvem_base, T);
-
-    recebendo = false;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Callback para parametros reconfiguraveis
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void dyn_reconfig_callback(astra_calibrada::term_params_Config &params, uint32_t level){
-  mut.lock();
-  K << params.f,        0, 320,
-              0, params.f, 256,
-              0,        0,   1;
-
-  RT << 1, 0, 0, params.dx/100,
-        0, 1, 0, params.dy/100,
-        0, 0, 1,        0      ;
-
-  P = K*RT;
-
-  cout << "\nMatriz de Projecao:\n" << P << endl;
-
-  mut.unlock();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Processa e publica
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void processAndPublish(){
-    if(!recebendo){
+//    if(!recebendo){
         // Coisas de imagem
         cv_bridge::CvImage jet_msg;
         jet_msg.image = imgCv_;
-        jet_msg.encoding = sensor_msgs::image_encodings::BGR8;
+        jet_msg.encoding = sensor_msgs::image_encodings::RGB8;
 
         // Inicia as nuvens e mensagem de saida
         nuvem_termica->clear(); nuvem_termica->resize(nuvem_base->size());
@@ -205,24 +151,77 @@ void processAndPublish(){
             }
         }
 
-        nuvem_termica->header.frame_id = "zed_left_optical";
+        nuvem_termica->header.frame_id = "zed_left_camera";
         // Mensagem Nuvem
         toROSMsg(*nuvem_base   , base_msg);
         toROSMsg(*nuvem_termica, msg_ter );
         msg_ter.header.frame_id  = nuvem_termica->header.frame_id;
         msg_ter.header.stamp     = ros::Time::now();
-        base_msg.header.frame_id = "zed_left_optical";
+        base_msg.header.frame_id = "zed_left_camera";
         base_msg.header.stamp    = msg_ter.header.stamp;
         jet_msg.header.stamp     = msg_ter.header.stamp;
 
         // Publicando
-        ROS_INFO("Publicando (nuvem com %zu pontos normais e %zu termicos)...", base_msg.data.size(), msg_ter.data.size());
+        ROS_INFO("Publicando %zu pontos...", base_msg.data.size());
         pub_cloud.publish(msg_ter);
         pub_base.publish(base_msg);
         pub_jet.publish(jet_msg.toImageMsg());
-    }
+//    }
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Callback para projecao da nuvem
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void callback(const sensor_msgs::ImageConstPtr& msg_t,
+              const sensor_msgs::PointCloud2ConstPtr& msg_pc)
+{
+    recebendo = true;
+    // Coisas de imagem
+    cv::Mat img_g;
+    cv::Mat imagem_termica_cor;
+    imgCv_ = cv_bridge::toCvShare(msg_t, "rgb8")->image;
+    cv::cvtColor(imgCv_, img_g, CV_RGB2GRAY);
+    cv::applyColorMap(img_g, imagem_termica_cor, cv::COLORMAP_JET);
+    imgCv_ = imagem_termica_cor;
 
+    cv_bridge::CvImage jet_msg;
+    jet_msg.image = imgCv_;
+    jet_msg.encoding = sensor_msgs::image_encodings::BGR8;
+
+    // Inicia as nuvens e mensagem de saida
+    fromROSMsg(*msg_pc, *nuvem_base);
+    remove_outlier(nuvem_base, 10, 1);
+    nuvem_termica->clear(); nuvem_termica->resize(nuvem_base->size());
+
+    // Rotaciona a nuvem para o frame onde Z esta para frente (se ja estiver, comentar)
+    Eigen::Matrix3f R;
+    R = Eigen::AngleAxisf(M_PI/2, Eigen::Vector3f::UnitZ()) * Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitY());
+    Eigen::Matrix4f T = Eigen::Matrix4f::Identity();     // Matriz de transformaçao homogenea
+    T.block<3, 3>(0, 0) = R;                             // Adiciona a rotacao onde deve estar
+    transformPointCloud(*nuvem_base, *nuvem_base, T);
+
+    recebendo = false;    
+
+    processAndPublish();
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Callback para parametros reconfiguraveis
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void dyn_reconfig_callback(astra_calibrada::term_params_Config &params, uint32_t level){
+//  mut.lock();
+//  K << params.f,        0, 320,
+//              0, params.f, 256,
+//              0,        0,   1;
+
+//  RT << 1, 0, 0, params.dx/100,
+//        0, 1, 0, params.dy/100,
+//        0, 0, 1,        0      ;
+
+//  P = K*RT;
+
+//  cout << "\nMatriz de Projecao:\n" << P << endl;
+
+//  mut.unlock();
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Main
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -235,10 +234,10 @@ int main(int argc, char **argv)
 
     nuvem_base = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
 //    loadPLYFile("/home/vinicius/Desktop/prova_conceito_artigo.ply", *nuvem_base);
-    nuvem_base->header.frame_id = "zed_left_optical";
+    nuvem_base->header.frame_id = "zed_left_camera";
 
     nuvem_termica = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
-    nuvem_termica->header.frame_id = "zed_left_optical";
+    nuvem_termica->header.frame_id = "zed_left_camera";
 
     // Servidor e callback de parametros de calibracao reconfiguraveis
     dynamic_reconfigure::Server<astra_calibrada::term_params_Config> server;
@@ -246,12 +245,12 @@ int main(int argc, char **argv)
     f = boost::bind(&dyn_reconfig_callback, _1, _2);
     server.setCallback(f);
 
-    K << 1580,    0, 320,
-            0, 1580, 256,
+    K << 1500,    0, 320,
+            0, 1500, 256,
             0,    0,   1;
 
-    RT << 1, 0, 0,  0.045,
-          0, 1, 0, -0.045,
+    RT << 1, 0, 0,  -0.065,
+          0, 1, 0,  0.045,
           0, 0, 1,  0    ;
 
     P = K*RT;
@@ -261,15 +260,15 @@ int main(int argc, char **argv)
     pub_jet   = nh.advertise<sensor_msgs::Image      >("/ter_jet"         , 10);
 
 //    ros::Subscriber ter_sub = nh.subscribe("/thermal/image_raw", 1000, callback);
-    message_filters::Subscriber<sensor_msgs::Image>       subima(nh, "/dados_sync/image_8bits"          , 100);
-    message_filters::Subscriber<sensor_msgs::PointCloud2> subptc(nh, "/zed/point_cloud/cloud_registered", 100);
-    Synchronizer<syncPolicy> sync(syncPolicy(100), subima, subptc);
+    message_filters::Subscriber<sensor_msgs::Image>       subima(nh, "/dados_sync/image_8bits", 10);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> subptc(nh, "/dados_sync/point_cloud", 10);
+    Synchronizer<syncPolicy> sync(syncPolicy(10), subima, subptc);
     sync.registerCallback(boost::bind(&callback, _1, _2));
 
     ros::Rate r(2);
     while(ros::ok()){
         r.sleep();
-        processAndPublish();
+//        processAndPublish();
         ros::spinOnce();
     }
 
