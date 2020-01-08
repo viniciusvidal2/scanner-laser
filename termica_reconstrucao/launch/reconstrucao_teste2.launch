@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!--This launches all the rustbot system-->
+<launch>
+  <!--arguments-->
+  <arg name="do_accumulation" default="true"/>
+  <arg name="input_cloud" default=""/>
+  <arg name="input_image" default=""/>
+  <arg name="input_odom"  default=""/>
+
+<!-- TERMICA -->
+<!--    <node name="reconstrucao_termica" pkg="termica_reconstrucao" type="reconstrucaoF" output="screen">
+        <param name="topico_pc" value="/stereo/points2" />
+        <param name="topico_out" value="/termica/termica_pc" />
+        <param name="topico_imagem" value="/termica/thermal/image_raw" />
+        <param name="termica_calibration_yaml" value="file://$(find rustbot_calibration)/calibration/termica"/>
+    </node>-->
+
+<!-- TERMICA VINICIUS -->
+    <node name="projeta_termica" pkg="termica_reconstrucao" type="projeta_termica" output="screen">
+        <param name="termica_calibration_yaml" value="file://$(find rustbot_calibration)/calibration/termica"/> <!-- Diretorio que contem o arquivo .yaml da calibracao da camera termica -->
+        <param name="input_cloud" value="$(arg input_cloud)"/>
+        <param name="input_image" value="$(arg input_image)"/>
+        <param name="input_odom"  value="$(arg input_odom) "/>
+    </node>
+
+
+<!--   <node pkg="rviz" type="rviz" name="rviz" args="-f left_optical"/>-->
+
+<group if="$(arg do_accumulation)">
+<node name="acumula_termica" pkg="termica_reconstrucao" type="acumula_termica" output="screen">
+</node>
+</group>
+
+<!-- Escala de temperatura na imagem térmica -->
+<!--<node name="reconstrucao_termica_escala" pkg="termica_reconstrucao" type="imTermicaScaled.py" output="screen">
+</node> -->
+
+<!---->
+
+<!--
+termica: termica.yaml
+right:   calibration_50-0536881129.yaml
+left:    calibration_50-0536881130.yaml
+ -->
+</launch>
