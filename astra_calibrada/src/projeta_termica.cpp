@@ -29,6 +29,7 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/io/ply_io.h>
+#include <pcl/filters/extract_indices.h>
 
 // EIGEN
 #include <Eigen/Geometry>
@@ -123,8 +124,10 @@ void processAndPublish(Eigen::Matrix4f T, Eigen::Quaternion<float> q, Eigen::Vec
         nuvem_termica->clear(); nuvem_termica->resize(nuvem_base->size());
         sensor_msgs::PointCloud2 msg_ter, base_msg;
 
+//        PointIndices::Ptr inliers (new PointIndices);
+//        ExtractIndices<PointT> extract;
 #pragma omp parallel for num_threads(100)
-        for(size_t i = 0; i < nuvem_base->size(); i=i+3){
+        for(size_t i = 0; i < nuvem_base->size(); i=i+2){
 
             Eigen::MatrixXf ponto3D(4, 1);
             ponto3D << nuvem_base->points[i].x, nuvem_base->points[i].y, nuvem_base->points[i].z, 1;
@@ -148,32 +151,45 @@ void processAndPublish(Eigen::Matrix4f T, Eigen::Quaternion<float> q, Eigen::Vec
                 point_termica.g = g;
                 point_termica.b = b;
 
+//                nuvem_termica->push_back(point_termica);
                 nuvem_termica->points[i] = point_termica;
-            } else {
-                nuvem_termica->points[i] = nuvem_base->points[i];
+
+//                inliers->indices.push_back(i);
             }
         }
-        std::vector<int> indices_nan;
-        removeNaNFromPointCloud(*nuvem_termica, indices_nan);
+//        if(inliers->indices.size() > 0){
+//            extract.setInputCloud(nuvem_termica);
+//            extract.setNegative(false);
+//            extract.setIndices(inliers);
+//            extract.filter(*nuvem_termica);
+//        }
 
         // Trazer de volta para o frame da ZED, com X para frente da camera
         transformPointCloud(*nuvem_base   , *nuvem_base   , T.inverse());
         transformPointCloud(*nuvem_termica, *nuvem_termica, T.inverse());
 
         // Colocar no lugar certo segundo Odometria
-        transformPointCloud(*nuvem_termica, *nuvem_termica, t, q);
         transformPointCloud(*nuvem_base   , *nuvem_base   , t, q);
+        transformPointCloud(*nuvem_termica, *nuvem_termica, t, q);
 
         // Acumular nuvens
-        *nuvem_acumulada         += *nuvem_base;
+//        *nuvem_acumulada         += *nuvem_base;
         *nuvem_acumulada_termica += *nuvem_termica;
-        ROS_INFO("Tamanho das nuvens acumuladas: %zu", nuvem_acumulada->size());
+        ROS_INFO("Tamanho das nuvens acumuladas: %zu   %zu", nuvem_acumulada->size(), nuvem_acumulada_termica->size());
 
-        // Salvar dados - possivel para facilitar talvez
+//        loadPLYFile<PointT>("/home/vinicius/Desktop/nuvem_normal_artigo_2.ply", *nuvem_acumulada);
+
+        // Salvar nuvem na hora certa
+        if(contador == 8){
+            savePLYFileASCII<PointT>("/home/vinicius/Desktop/nuvem_termica_artigo.ply", *nuvem_acumulada_termica);
+            savePLYFileASCII<PointT>("/home/vinicius/Desktop/nuvem_normal_artigo.ply" , *nuvem_base        );
+            ros::shutdown();
+        }
+        contador++;
 
         // Mensagem Nuvem
         nuvem_termica->header.frame_id = nuvem_base->header.frame_id;
-        toROSMsg(*nuvem_acumulada_termica   , base_msg);
+        toROSMsg(*nuvem_base        , base_msg);
         toROSMsg(*nuvem_termica, msg_ter );
         msg_ter.header.frame_id  = nuvem_termica->header.frame_id;
         msg_ter.header.stamp     = ros::Time::now();
@@ -182,7 +198,7 @@ void processAndPublish(Eigen::Matrix4f T, Eigen::Quaternion<float> q, Eigen::Vec
         jet_msg.header.stamp     = msg_ter.header.stamp;
 
         // Publicando
-        ROS_INFO("Publicando %zu pontos e %zu pontos ...", base_msg.data.size(), msg_ter.data.size());
+        ROS_INFO("Publicando %d ...", contador);
         pub_cloud.publish(msg_ter);
         pub_base.publish(base_msg);
         pub_jet.publish(jet_msg.toImageMsg());
@@ -282,7 +298,7 @@ int main(int argc, char **argv)
             0, 1500, 256,
             0,    0,   1;
 
-    RT << 1, 0, 0,  -0.075,
+    RT << 1, 0, 0, -0.075,
           0, 1, 0,  0.045,
           0, 0, 1,  0    ;
 
@@ -303,9 +319,13 @@ int main(int argc, char **argv)
     ros::Rate r(2);
     while(ros::ok()){
         r.sleep();
-//        processAndPublish();
         ros::spinOnce();
     }
+
+//    savePLYFileASCII<PointT>("/home/vinicius/Desktop/nuvem_normal_artigo.ply" , *nuvem_acumulada        );
+//    savePLYFileASCII<PointT>("/home/vinicius/Desktop/nuvem_termica_artigo.ply", *nuvem_acumulada_termica);
+
+    cout << "\n\nTudo salvo na pasta correta\n\n" << endl;
 
     return 0;
 }
